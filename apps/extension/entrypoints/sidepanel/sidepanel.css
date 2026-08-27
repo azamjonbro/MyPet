@@ -1,0 +1,109 @@
+:root {
+  --bg: #F4F2ED; --card: #FFFFFF; --ink: #221F1A; --ink-2: #5F5A50; --ink-3: #928C80;
+  --rule: #E1DDD3; --brand: #C4682A; --brand-soft: #FBE9DA;
+  /* Data marks are a separate token from the UI accent: this value is
+     validated against the chart surface for contrast and lightness. */
+  --data: #C4682A;
+  --data-track: #E8E4DA;
+  --good: #4E7A31; --warn: #A8631E; --bad: #B4452C;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161411; --card: #1E1B17; --ink: #EFEBE3; --ink-2: #ADA69A; --ink-3: #7E776B;
+    --rule: #2C2823; --brand: #E9A05E; --brand-soft: #332315;
+    --data: #CD7C36;
+    --data-track: #2A2721;
+    --good: #9CC46E; --warn: #E0A860; --bad: #E48B6E;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.5;
+}
+.wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; max-width: 520px; margin: 0 auto; }
+
+.top { display: flex; align-items: baseline; gap: 8px; }
+.top h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
+.top .day { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 14px; }
+.card h2 {
+  margin: 0 0 11px; font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 700;
+}
+
+/* hero stat — a number, not a chart */
+.hero { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.hero .title { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+.hero .lv { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.track { height: 8px; border-radius: 99px; background: var(--data-track); overflow: hidden; margin-top: 10px; }
+.track i { display: block; height: 100%; background: var(--data); border-radius: 99px; transition: width 0.5s cubic-bezier(0.34, 1.2, 0.5, 1); }
+.hero-foot { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+.tile { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 11px 12px; }
+.tile b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tile span { font-size: 11px; color: var(--ink-3); }
+.tile.risk { border-color: var(--warn); }
+.tile.risk b { color: var(--warn); }
+
+/* activity: 14 bars, one series, one hue */
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 68px; }
+.bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; position: relative; cursor: default; }
+.bar-col i {
+  display: block; width: 100%; background: var(--data);
+  border-radius: 4px 4px 0 0; min-height: 2px;
+  transition: opacity 0.15s ease;
+}
+.bar-col.empty i { background: var(--data-track); }
+.bar-col:hover i { opacity: 0.72; }
+.bar-col .tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); font-size: 11px; line-height: 1.35;
+  padding: 5px 8px; border-radius: 7px; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.12s ease; z-index: 2; font-variant-numeric: tabular-nums;
+}
+.bar-col:hover .tip, .bar-col:focus-within .tip { opacity: 1; }
+.bars-axis { display: flex; justify-content: space-between; margin-top: 7px; font-size: 11px; color: var(--ink-3); }
+
+/* skills: 6 bars, direct-labelled — no hover needed when every value is on screen */
+.skill { display: grid; grid-template-columns: 74px 1fr 30px; align-items: center; gap: 9px; padding: 3px 0; }
+.skill span { font-size: 12.5px; color: var(--ink-2); text-transform: capitalize; }
+.skill .track { margin-top: 0; height: 7px; }
+.skill em { font-style: normal; font-size: 12px; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* weak topics: a ranked list, with the learner's own evidence */
+.weak { display: flex; flex-direction: column; gap: 11px; }
+.weak-row { display: flex; flex-direction: column; gap: 5px; }
+.weak-head { display: flex; align-items: baseline; gap: 8px; }
+.weak-head b { font-size: 13.5px; font-weight: 600; flex: 1; }
+.weak-head .n {
+  font-size: 11px; font-weight: 700; color: var(--brand); background: var(--brand-soft);
+  padding: 2px 8px; border-radius: 99px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ex { display: flex; gap: 7px; align-items: baseline; font-size: 12.5px; }
+.ex s { text-decoration: line-through; text-decoration-color: var(--bad); color: var(--ink-3); }
+.ex b { color: var(--good); font-weight: 600; }
+.ex .g { font-size: 11px; }
+
+.empty { text-align: center; padding: 20px 10px; color: var(--ink-3); }
+.empty .e { font-size: 28px; display: block; margin-bottom: 7px; }
+.empty p { margin: 0 0 3px; color: var(--ink-2); font-size: 13.5px; }
+.empty small { font-size: 12px; }
+
+.skeleton { background: linear-gradient(90deg, var(--rule) 25%, var(--card) 50%, var(--rule) 75%); background-size: 200% 100%; animation: sk 1.3s infinite; border-radius: 12px; }
+@keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+button.primary {
+  border: 0; border-radius: 10px; background: var(--brand); color: #fff;
+  font-family: inherit; font-size: 14px; font-weight: 600; padding: 9px 16px; cursor: pointer;
+}
+@media (prefers-color-scheme: dark) { button.primary { color: #1B1610; } }
+button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.err { color: var(--bad); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } .track i, .bar-col i { transition: none; } }

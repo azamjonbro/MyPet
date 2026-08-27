@@ -140,6 +140,18 @@ export function App() {
         </div>
       </div>
 
+      <button
+        className="primary"
+        onClick={() => {
+          // sidePanel.open must be called from a user gesture, which this is.
+          chrome.windows.getCurrent().then((w) => {
+            if (w.id !== undefined) void chrome.sidePanel.open({ windowId: w.id });
+          });
+        }}
+      >
+        Open dashboard
+      </button>
+
       {profile.currentDay === 0 ? (
         <div className="state" style={{ padding: '10px 0 0' }}>
           <p style={{ fontSize: 13 }}>Your 90-day plan hasn't started.</p>

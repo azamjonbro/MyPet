@@ -1,4 +1,12 @@
-import type { MeResponse, PetEvent, PetState } from '@pet/shared';
+import type {
+  ChatStreamEvent,
+  HistoryDay,
+  MeResponse,
+  PetEvent,
+  PetState,
+  ProgressSummary,
+  Weakness,
+} from '@pet/shared';
 
 /**
  * The only contract between the content script / popup and the service worker.
@@ -14,7 +22,14 @@ export type Request =
   | { type: 'PET_EVENT'; event: PetEvent }
   | { type: 'PET_POSITION_SET'; host: string; x: number; y: number }
   | { type: 'PET_POSITION_GET'; host: string }
-  | { type: 'HOST_MUTE'; host: string };
+  | { type: 'HOST_MUTE'; host: string }
+  | { type: 'PROGRESS_GET' };
+
+export interface ProgressBundle {
+  summary: ProgressSummary;
+  weaknesses: Weakness[];
+  history: HistoryDay[];
+}
 
 export type SessionState =
   | { status: 'signed-out' }
@@ -24,6 +39,7 @@ export type SessionState =
 
 export type Response =
   | { ok: true; session: SessionState }
+  | { ok: true; progress: ProgressBundle }
   | { ok: true; position: { x: number; y: number } | null }
   | { ok: true }
   | { ok: false; code: string; message: string };
@@ -32,6 +48,19 @@ export type Response =
 export type Push =
   | { type: 'PET_STATE'; state: PetState }
   | { type: 'SESSION_CHANGED'; session: SessionState };
+
+/**
+ * Chat runs over a long-lived port rather than one-shot messages, because a
+ * reply arrives as many small chunks and the connection is what keeps the MV3
+ * service worker alive while it streams.
+ */
+export const CHAT_PORT = 'chat';
+
+export type ChatPortRequest =
+  | { type: 'send'; text: string; sessionId?: string }
+  | { type: 'abort' };
+
+export type ChatPortEvent = ChatStreamEvent;
 
 export async function send<R extends Response = Response>(req: Request): Promise<R> {
   return (await chrome.runtime.sendMessage(req)) as R;

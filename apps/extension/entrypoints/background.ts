@@ -1,7 +1,15 @@
 import type { MeResponse } from '@pet/shared';
-import { api, ApiError, signOut } from '../src/services/api.js';
+import { api, ApiError, signOut, streamChat } from '../src/services/api.js';
 import { localStore, sessionStore } from '../src/services/storage.js';
-import type { Push, Request, Response, SessionState } from '../src/types/messages.js';
+import { CHAT_PORT } from '../src/types/messages.js';
+import type {
+  ChatPortEvent,
+  ChatPortRequest,
+  Push,
+  Request,
+  Response,
+  SessionState,
+} from '../src/types/messages.js';
 
 /**
  * The service worker is the only surface that touches the network.
@@ -80,6 +88,15 @@ async function handle(req: Request): Promise<Response> {
       return { ok: true };
     }
 
+    case 'PROGRESS_GET': {
+      const [summary, weaknesses, history] = await Promise.all([
+        api.progressSummary(),
+        api.weaknesses(),
+        api.history(14),
+      ]);
+      return { ok: true, progress: { summary, weaknesses, history } };
+    }
+
     case 'PET_EVENT':
       // Phase 3+ will turn learner-side events into tutor calls. For now the
       // pet drives its own state machine locally.
@@ -107,5 +124,56 @@ export default defineBackground(() => {
 
   chrome.action.onClicked.addListener(() => {
     chrome.runtime.openOptionsPage?.();
+  });
+
+  // --- chat streaming -----------------------------------------------------
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name !== CHAT_PORT) return;
+
+    let controller: AbortController | null = null;
+    let closed = false;
+
+    const post = (event: ChatPortEvent) => {
+      if (closed) return;
+      try {
+        port.postMessage(event);
+      } catch {
+        // The page went away mid-reply; stop rather than throwing.
+        closed = true;
+        controller?.abort();
+      }
+    };
+
+    port.onDisconnect.addListener(() => {
+      closed = true;
+      controller?.abort();
+    });
+
+    port.onMessage.addListener((raw) => {
+      const message = raw as ChatPortRequest;
+
+      if (message.type === 'abort') {
+        controller?.abort();
+        return;
+      }
+      if (message.type !== 'send') return;
+
+      controller?.abort();
+      controller = new AbortController();
+
+      void streamChat(
+        { text: message.text, ...(message.sessionId ? { sessionId: message.sessionId } : {}) },
+        post,
+        controller.signal,
+      ).catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        const e = err instanceof ApiError ? err : null;
+        post({
+          type: 'error',
+          code: e?.code ?? 'INTERNAL',
+          message: e?.message ?? 'Mochi could not answer. Try again.',
+        });
+      });
+    });
   });
 });

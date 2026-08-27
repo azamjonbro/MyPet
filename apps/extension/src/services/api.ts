@@ -1,4 +1,11 @@
-import type { AuthTokens, MeResponse } from '@pet/shared';
+import type {
+  AuthTokens,
+  ChatStreamEvent,
+  HistoryDay,
+  MeResponse,
+  ProgressSummary,
+  Weakness,
+} from '@pet/shared';
 import { localStore, sessionStore } from './storage.js';
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:4100/api/v1';
@@ -102,7 +109,93 @@ export const api = {
   updateProfile(patch: Record<string, unknown>): Promise<MeResponse> {
     return authed('/me/profile', { method: 'PATCH', body: JSON.stringify(patch) }) as Promise<MeResponse>;
   },
+
+  progressSummary(): Promise<ProgressSummary> {
+    return authed('/progress/summary') as Promise<ProgressSummary>;
+  },
+
+  async weaknesses(): Promise<Weakness[]> {
+    const res = (await authed('/progress/weaknesses')) as { weaknesses: Weakness[] };
+    return res.weaknesses;
+  },
+
+  async history(days = 14): Promise<HistoryDay[]> {
+    const res = (await authed(`/progress/history?days=${days}`)) as { days: HistoryDay[] };
+    return res.days;
+  },
 };
+
+/**
+ * Streams a tutoring turn.
+ *
+ * Only the service worker calls this. Holding the SSE connection there is also
+ * what keeps the MV3 worker alive for the length of the reply — an idle worker
+ * is terminated after about thirty seconds, but one with an open stream is not.
+ */
+export async function streamChat(
+  body: { text: string; sessionId?: string },
+  onEvent: (event: ChatStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  let token = await sessionStore.getAccessToken();
+  if (!token) token = await refreshSession();
+  if (!token) throw new ApiError('UNAUTHENTICATED', 'Sign in to continue.', 401);
+
+  const open = async (bearer: string) =>
+    fetch(`${BASE}/chat/message`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+  let res: Response;
+  try {
+    res = await open(token);
+    if (res.status === 401) {
+      const fresh = await refreshSession();
+      if (!fresh) throw new ApiError('UNAUTHENTICATED', 'Sign in to continue.', 401);
+      res = await open(fresh);
+    }
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError('UPSTREAM_UNAVAILABLE', 'Cannot reach the server. Is the backend running?', 0);
+  }
+
+  if (!res.ok || !res.body) {
+    const parsed = (await parse(res).catch(() => null)) as
+      | { error?: { code?: string; message?: string } }
+      | null;
+    throw new ApiError(
+      parsed?.error?.code ?? 'INTERNAL',
+      parsed?.error?.message ?? 'Mochi could not answer.',
+      res.status,
+    );
+  }
+
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += value;
+
+    // SSE frames are separated by a blank line; a frame may arrive in pieces.
+    let split = buffer.indexOf('\n\n');
+    while (split !== -1) {
+      const frame = buffer.slice(0, split).trim();
+      buffer = buffer.slice(split + 2);
+      if (frame.startsWith('data:')) {
+        try {
+          onEvent(JSON.parse(frame.slice(5).trim()) as ChatStreamEvent);
+        } catch {
+          // A malformed frame is not worth killing the whole reply for.
+        }
+      }
+      split = buffer.indexOf('\n\n');
+    }
+  }
+}
 
 export async function signOut(): Promise<void> {
   const refreshToken = await localStore.getRefreshToken();
