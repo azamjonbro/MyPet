@@ -1,0 +1,180 @@
+/* Injected into a shadow root, so nothing here can reach the host page and
+   nothing on the host page can reach the pet. Every value is explicit —
+   no inherited fonts, colours or sizing from whatever site we are on. */
+
+:host, .pet-root {
+  all: initial;
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+}
+
+.pet-root {
+  position: fixed;
+  z-index: 2147483000;
+  width: 150px;
+  /* The wrapper never eats a click meant for the page underneath. */
+  pointer-events: none;
+  contain: layout style;
+
+  --fur: #E39B4A;
+  --fur-dark: #C97F31;
+  --cream: #FDF5E7;
+  --coal: #2B2620;
+  --blush: #F0A08C;
+  --brand: #C4682A;
+  --panel: #ffffff;
+  --panel-rule: #E6E1D7;
+  --ink: #221F1A;
+  --ink-3: #928C80;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pet-root {
+    --cream: #F7EDDC;
+    --fur-dark: #B87430;
+    --brand: #E9A05E;
+    --panel: #22201B;
+    --panel-rule: #332F28;
+    --ink: #EFEBE3;
+    --ink-3: #7E776B;
+  }
+}
+
+.pet-tap {
+  width: 150px;
+  height: 150px;
+  pointer-events: auto;
+  cursor: grab;
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: none;
+  display: block;
+  filter: drop-shadow(0 10px 18px rgba(34, 31, 26, 0.22));
+  touch-action: none;
+}
+.pet-tap:active { cursor: grabbing; }
+.pet-tap:focus-visible { outline: 3px solid var(--brand); outline-offset: 6px; border-radius: 24px; }
+
+.pet-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.fur { fill: var(--fur); }
+.fur-d { fill: var(--fur-dark); }
+.cream { fill: var(--cream); }
+.coal { fill: var(--coal); }
+.blush { fill: var(--blush); opacity: 0.55; }
+.pet-shadow { fill: var(--coal); opacity: 0.13; }
+
+.g-body, .g-head, .g-tail, .g-earL, .g-earR, .g-eyes, .g-all, .g-legF, .g-legB {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.g-tail { transform-origin: 8% 88%; }
+.g-head { transform-origin: 50% 92%; }
+.g-earL { transform-origin: 70% 95%; }
+.g-earR { transform-origin: 30% 95%; }
+.g-all  { transform-origin: 50% 96%; }
+
+/* Only transform and opacity are animated — GPU-composited, so the host
+   page never re-layouts because of us. */
+@keyframes breathe { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1.6px) scale(1.018); } }
+@keyframes blink { 0%,90%,100% { transform: scaleY(1); } 94% { transform: scaleY(0.07); } }
+@keyframes wag { 0%,100% { transform: rotate(-11deg); } 50% { transform: rotate(16deg); } }
+@keyframes wagFast { 0%,100% { transform: rotate(-22deg); } 50% { transform: rotate(30deg); } }
+@keyframes bobWalk { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-4px) rotate(1.5deg); } }
+@keyframes stepF { 0%,100% { transform: translateY(0) rotate(-14deg); } 50% { transform: translateY(-2px) rotate(14deg); } }
+@keyframes stepB { 0%,100% { transform: translateY(0) rotate(14deg); } 50% { transform: translateY(-2px) rotate(-14deg); } }
+@keyframes talkHead { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes talkMouth { 0%,100% { transform: scaleY(0.35); } 50% { transform: scaleY(1.15); } }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-16px); } 55% { transform: translateY(0); } 70% { transform: translateY(-7px); } }
+@keyframes party { 0%,100% { transform: translateY(0) rotate(0); } 20% { transform: translateY(-24px) rotate(-9deg); } 45% { transform: translateY(0) rotate(0); } 65% { transform: translateY(-13px) rotate(9deg); } }
+@keyframes droop { 0%,100% { transform: translateY(2px); } 50% { transform: translateY(4px); } }
+@keyframes sleepBreathe { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1px) scale(1.03); } }
+@keyframes alert { 0%,100% { transform: translateY(0) rotate(0); } 15% { transform: translateY(-11px) rotate(-6deg); } 30% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-11px) rotate(6deg); } 60% { transform: translateY(0) rotate(0); } }
+@keyframes zfloat { 0% { opacity: 0; transform: translate(0,0) scale(0.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(16px,-30px) scale(1.15); } }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(0.94); } to { opacity: 1; transform: none; } }
+
+.is-idle .g-body { animation: breathe 3.4s ease-in-out infinite; }
+.is-idle .g-tail { animation: wag 2.4s ease-in-out infinite; }
+.is-idle .g-eyes { animation: blink 5.2s infinite; }
+
+.is-walking .g-all  { animation: bobWalk 0.46s ease-in-out infinite; }
+.is-walking .g-tail { animation: wagFast 0.3s ease-in-out infinite; }
+.is-walking .g-legF { animation: stepF 0.46s ease-in-out infinite; }
+.is-walking .g-legB { animation: stepB 0.46s ease-in-out infinite; }
+
+.is-talking .g-head { animation: talkHead 1.5s ease-in-out infinite; }
+.is-talking .g-tail { animation: wag 1.5s ease-in-out infinite; }
+.is-talking .mouth-open { animation: talkMouth 0.28s ease-in-out infinite; }
+.is-talking .g-eyes { animation: blink 4s infinite; }
+
+.is-happy .g-all  { animation: bounce 0.7s ease-out; }
+.is-happy .g-tail { animation: wagFast 0.26s ease-in-out infinite; }
+
+.is-celebrating .g-all  { animation: party 1.1s ease-in-out; }
+.is-celebrating .g-tail { animation: wagFast 0.2s ease-in-out infinite; }
+
+.is-sad .g-all  { animation: droop 2.6s ease-in-out infinite; }
+.is-sad .g-earL { transform: rotate(38deg) translateY(3px); }
+.is-sad .g-earR { transform: rotate(-38deg) translateY(3px); }
+.is-sad .g-tail { transform: rotate(46deg); }
+.is-sad .g-head { transform: translateY(4px); }
+
+.is-sleeping .g-body { animation: sleepBreathe 4.4s ease-in-out infinite; }
+.is-sleeping .g-tail { transform: rotate(40deg); }
+.is-sleeping .g-earL { transform: rotate(24deg); }
+.is-sleeping .g-earR { transform: rotate(-24deg); }
+
+.is-notifying .g-all  { animation: alert 0.82s ease-in-out infinite; }
+.is-notifying .g-tail { animation: wagFast 0.24s ease-in-out infinite; }
+
+.eyes-closed, .mouth-open, .zzz, .bang { display: none; }
+.is-sleeping .eyes-open { display: none; }
+.is-sleeping .eyes-closed, .is-sleeping .zzz { display: block; }
+.is-happy .eyes-open, .is-celebrating .eyes-open { display: none; }
+.is-happy .eyes-closed, .is-celebrating .eyes-closed { display: block; }
+.is-talking .mouth-open { display: block; }
+.is-talking .mouth-line { display: none; }
+.is-notifying .bang { display: block; }
+.zzz text { animation: zfloat 2.6s ease-out infinite; }
+.zzz text:nth-child(2) { animation-delay: 0.85s; }
+.zzz text:nth-child(3) { animation-delay: 1.7s; }
+
+.bubble {
+  position: absolute;
+  bottom: 132px;
+  right: 8px;
+  max-width: 230px;
+  min-width: 92px;
+  box-sizing: border-box;
+  background: var(--panel);
+  border: 1.5px solid var(--panel-rule);
+  border-radius: 16px 16px 5px 16px;
+  padding: 10px 13px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  box-shadow: 0 2px 4px rgba(34,31,26,0.06), 0 16px 34px -16px rgba(34,31,26,0.4);
+  pointer-events: auto;
+  animation: bubbleIn 0.28s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  right: 26px;
+  bottom: -8px;
+  width: 13px;
+  height: 13px;
+  background: var(--panel);
+  border-right: 1.5px solid var(--panel-rule);
+  border-bottom: 1.5px solid var(--panel-rule);
+  transform: rotate(45deg);
+  border-radius: 0 0 3px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-root *, .pet-root *::before, .pet-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

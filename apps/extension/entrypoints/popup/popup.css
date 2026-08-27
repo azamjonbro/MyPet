@@ -1,0 +1,84 @@
+:root {
+  --bg: #F4F2ED; --card: #fff; --ink: #221F1A; --ink-2: #5F5A50; --ink-3: #928C80;
+  --rule: #E1DDD3; --brand: #C4682A; --brand-soft: #FBE9DA;
+  --ok: #5B8A3C; --bad: #B4452C;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161411; --card: #1E1B17; --ink: #EFEBE3; --ink-2: #ADA69A; --ink-3: #7E776B;
+    --rule: #2C2823; --brand: #E9A05E; --brand-soft: #332315;
+    --ok: #9CC46E; --bad: #E48B6E;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 320px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.head { display: flex; align-items: center; gap: 10px; }
+.head .av {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--brand-soft);
+  display: grid; place-items: center; font-size: 19px; flex: none;
+}
+.head b { display: block; font-size: 15px; }
+.head span { display: block; font-size: 12px; color: var(--ink-3); }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 13px; }
+.card h2 {
+  margin: 0 0 9px; font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 700;
+}
+
+.row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.row .big { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.row .sub { font-size: 12px; color: var(--ink-3); }
+
+.bar { height: 7px; border-radius: 99px; background: var(--bg); overflow: hidden; margin-top: 9px; }
+.bar i { display: block; height: 100%; background: var(--brand); border-radius: 99px; transition: width 0.4s ease; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 10px 12px; }
+.stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; color: var(--ink-3); }
+
+button.primary {
+  width: 100%; border: 0; border-radius: 10px; background: var(--brand); color: #fff;
+  font-family: inherit; font-size: 14px; font-weight: 600; padding: 10px; cursor: pointer;
+}
+@media (prefers-color-scheme: dark) { button.primary { color: #1B1610; } }
+button.primary:hover { filter: brightness(1.06); }
+button.primary:disabled { opacity: 0.6; cursor: default; }
+button.link {
+  background: none; border: 0; color: var(--ink-3); font-family: inherit; font-size: 12px;
+  cursor: pointer; padding: 2px; text-decoration: underline;
+}
+button:focus-visible, input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+input {
+  width: 100%; border: 1.5px solid var(--rule); background: var(--card); color: var(--ink);
+  border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 14px;
+}
+input:focus { outline: none; border-color: var(--brand); }
+
+.state { text-align: center; padding: 22px 12px; color: var(--ink-2); }
+.state .emoji { font-size: 32px; display: block; margin-bottom: 8px; }
+.state p { margin: 0 0 4px; }
+.state small { color: var(--ink-3); }
+.error { color: var(--bad); font-size: 12.5px; margin: 0; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--rule) 25%, var(--card) 50%, var(--rule) 75%);
+  background-size: 200% 100%; animation: sk 1.3s infinite; border-radius: 8px;
+}
+@keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

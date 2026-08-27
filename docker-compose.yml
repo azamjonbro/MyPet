@@ -1,0 +1,9 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: pet-mongo
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: ["pet-mongo-data:/data/db"]
+volumes:
+  pet-mongo-data:

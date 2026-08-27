@@ -1,0 +1,32 @@
+import type { TutorReply } from '@pet/shared';
+
+export interface ProviderMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface TutorRequest {
+  systemPrompt: string;
+  messages: ProviderMessage[];
+  /** CEFR level, so a provider can adapt sampling if it wants to. */
+  level: string;
+}
+
+export interface TutorResult {
+  reply: TutorReply;
+  usage: { inputTokens: number; outputTokens: number };
+}
+
+/**
+ * One interface, so a model or vendor change is a contained change (§C).
+ * Today there are two implementations: OpenAI, and a deterministic offline one.
+ */
+export interface LLMProvider {
+  readonly name: string;
+  /**
+   * Streams the visible reply text through `onToken` as it arrives, and
+   * resolves with the fully-parsed structured result.
+   */
+  tutor(req: TutorRequest, onToken: (text: string) => void): Promise<TutorResult>;
+  summarise(text: string, instruction: string): Promise<string>;
+}
