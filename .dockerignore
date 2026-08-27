@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/.output
+**/.wxt
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode
+.idea

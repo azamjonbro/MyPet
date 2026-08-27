@@ -1,0 +1,58 @@
+# Production stack for a single VPS: Mongo and the API. TLS and the public
+# hostname are handled by nginx on the host — see deploy/nginx/. Run it with:
+#
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+#
+# Neither container is on the internet. Mongo publishes no port at all, and the
+# API binds to 127.0.0.1 so only nginx on this machine can reach it.
+
+name: ai-english-pet
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    # Loopback only. Binding 0.0.0.0 here would publish the API past the
+    # firewall on some hosts, since Docker writes its own iptables rules.
+    ports:
+      - '127.0.0.1:4100:4100'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/ai-english-pet?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL_TUTOR: ${OPENAI_MODEL_TUTOR:-gpt-4.1}
+      OPENAI_MODEL_CHEAP: ${OPENAI_MODEL_CHEAP:-gpt-4.1-mini}
+      DAILY_TOKEN_BUDGET: ${DAILY_TOKEN_BUDGET:-60000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # DEV_AUTH_ENABLED is deliberately absent. It is inert under
+      # NODE_ENV=production anyway, but it should not appear in a prod file.
+
+volumes:
+  mongo-data:

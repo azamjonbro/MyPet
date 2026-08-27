@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { env, isTest } from './config/env.js';
+import { env, isProd, isTest } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
@@ -11,6 +11,11 @@ export function createApp() {
 
   app.disable('x-powered-by');
   app.use(helmet());
+
+  // In production we sit behind exactly one reverse proxy (Caddy), so the
+  // client IP arrives in X-Forwarded-For. Without this the rate limiter sees
+  // every request as coming from the proxy and throttles all users as one.
+  if (isProd) app.set('trust proxy', 1);
 
   // The extension's origin is chrome-extension://<id>, which varies per build.
   // No cookies are used, so there is no CSRF surface to protect here.

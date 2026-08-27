@@ -1,5 +1,18 @@
 import { defineConfig } from 'wxt';
 
+// The manifest has to name the API we talk to, and that host differs between a
+// local backend and the deployed one. Deriving the permission from the same
+// VITE_API_BASE the fetch code reads keeps the two from ever drifting apart —
+// a mismatch here is a silent "failed to fetch" in the service worker.
+try {
+  process.loadEnvFile?.('.env');
+} catch {
+  /* no .env — fall back to localhost below */
+}
+
+const apiBase = process.env.VITE_API_BASE ?? 'http://localhost:4100/api/v1';
+const apiHost = `${new URL(apiBase).origin}/*`;
+
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   srcDir: '.',
@@ -14,7 +27,7 @@ export default defineConfig({
     // chrome.scripting.registerContentScripts.
     permissions: ['storage', 'alarms', 'scripting', 'sidePanel'],
     optional_permissions: ['identity'],
-    host_permissions: ['http://localhost:4100/*'],
+    host_permissions: [apiHost],
     optional_host_permissions: ['https://*/*', 'http://*/*'],
 
     action: { default_title: 'AI English Pet' },
