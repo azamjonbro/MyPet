@@ -3,6 +3,7 @@ import { levelFromXp, type MeResponse, type UpdateProfileRequest } from '@pet/sh
 import { Profile, User, type ProfileDoc, type UserDoc } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { localDate, planDayFor } from '../utils/date.js';
+import { isoWeek } from '../utils/week.js';
 
 export async function ensureProfile(userId: Types.ObjectId): Promise<ProfileDoc> {
   const existing = await Profile.findOne({ userId });
@@ -52,7 +53,7 @@ export function toMeResponse(user: UserDoc, profile: ProfileDoc): MeResponse {
         current: profile.streak.current,
         longest: profile.streak.longest,
         lastActiveLocalDate: profile.streak.lastActiveLocalDate ?? null,
-        graceUsedThisWeek: profile.streak.graceUsedThisWeek,
+        graceUsedThisWeek: profile.graceUsedWeek === isoWeek(today),
       },
       skills: {
         grammar: skill(profile.skills.grammar),

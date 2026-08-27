@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { chatMessageRequestSchema } from '@pet/shared';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
@@ -16,7 +16,10 @@ const chatLimiter = rateLimit({
   limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  keyGenerator: (req) => req.userId ?? req.ip ?? 'anonymous',
+  // Signed-in learners are limited per account. The IP fallback must go through
+  // ipKeyGenerator, which normalises an IPv6 address to its /64 — otherwise a
+  // client can hop addresses inside its own subnet and never hit the limit.
+  keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? 'anonymous'),
   message: { error: { code: 'RATE_LIMITED', message: 'Slow down a little — Mochi is still thinking.' } },
 });
 

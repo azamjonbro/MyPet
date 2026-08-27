@@ -11,7 +11,6 @@ const streak = new Schema(
     current: { type: Number, default: 0, min: 0 },
     longest: { type: Number, default: 0, min: 0 },
     lastActiveLocalDate: { type: String, default: null },
-    graceUsedThisWeek: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -28,6 +27,13 @@ const profileSchema = new Schema(
     planStartDate: { type: String, default: null },
 
     xp: { type: Number, default: 0, min: 0 },
+
+    /**
+     * ISO week in which the streak's grace day was spent, e.g. "2026-W35".
+     * Stored as the week rather than a boolean plus a weekly reset job, so the
+     * reset is derived and cannot drift when a job is missed.
+     */
+    graceUsedWeek: { type: String, default: null },
     streak: { type: streak, default: () => ({}) },
     skills: { type: skills, default: () => ({}) },
   },

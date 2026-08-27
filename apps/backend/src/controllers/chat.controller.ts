@@ -26,9 +26,15 @@ export async function message(req: Request, res: Response, next: NextFunction): 
   };
 
   // A learner who closes the pet mid-reply should stop costing us money.
+  //
+  // This must listen on `res`, not `req`: an IncomingMessage emits 'close' as
+  // soon as its body has been fully read, which for a POST is immediately —
+  // listening there suppresses every token before the first one is written.
+  // `res` emits 'close' when the connection goes away; if we ended it
+  // ourselves, writableEnded is already true and it was not an abort.
   let aborted = false;
-  req.on('close', () => {
-    aborted = true;
+  res.on('close', () => {
+    if (!res.writableEnded) aborted = true;
   });
 
   try {
@@ -60,8 +66,10 @@ export async function message(req: Request, res: Response, next: NextFunction): 
 
 export async function session(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // Express 5 types a route param as string | string[]; a repeated param
+    // is a malformed URL here, not something to guess at.
     const id = req.params.id;
-    if (!id) throw AppError.notFound('That conversation is gone.');
+    if (typeof id !== 'string' || !id) throw AppError.notFound('That conversation is gone.');
     res.json(await getSession(userIdOf(req), id));
   } catch (err) {
     next(err);

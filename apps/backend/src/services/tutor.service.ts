@@ -17,6 +17,8 @@ import {
   shouldSummarise,
 } from './memory.service.js';
 import { ensureProfile } from './profile.service.js';
+import { applyActivity } from './streak.service.js';
+import { record } from './analytics.service.js';
 import { AppError } from '../utils/errors.js';
 import { localDate } from '../utils/date.js';
 import { logger } from '../config/logger.js';
@@ -96,10 +98,23 @@ export async function runTurn(input: TurnInput): Promise<void> {
     input.emit({ type: 'vocab', items: reply.newVocab });
   }
 
-  const xpAwarded = awardFor(reply);
+  // Practising is what advances the streak — one turn is enough to have
+  // shown up today. The bonus is paid once per day, on the day it advances.
+  const streak = applyActivity(profile, today);
+
+  const xpAwarded = awardFor(reply) + streak.bonusXp;
   profile.xp += xpAwarded;
   bumpSkills(profile, reply.corrections);
   await Promise.all([conversation.save(), profile.save()]);
+
+  record(user._id, 'chat.message', today);
+  record(user._id, 'xp.awarded', today, xpAwarded);
+  if (reply.corrections.length > 0) {
+    record(user._id, 'correction.received', today, reply.corrections.length);
+  }
+  if (reply.newVocab.length > 0) {
+    record(user._id, 'vocab.learned', today, reply.newVocab.length);
+  }
 
   // Fold older turns into the rolling summary once the window overflows.
   if (shouldSummarise(conversation)) {
