@@ -2,9 +2,9 @@
 
 A Chrome extension with a small companion that helps you learn English while you browse.
 
-> **Status: Phase 1 (Foundation) and Phase 2 (Pet) are in.** Phases 3–8 — the AI tutor,
-> progress, Notion, the mission engine, notifications and polish — are not built yet.
-> See `ARCHITECTURE.md` for the plan each phase follows.
+> **Status: Phases 1–4 are in** — foundation, the pet, the AI English tutor, and
+> progress analytics. Phases 5–8 (Notion, the mission engine, notifications,
+> polish) are not built yet.
 
 ## Layout
 
@@ -60,7 +60,7 @@ switches on as soon as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
 | `pnpm dev` | Backend and extension together |
 | `pnpm dev:backend` | Backend only, watch mode |
 | `pnpm dev:extension` | Extension only, with content-script HMR |
-| `pnpm test` | All tests (25 today) |
+| `pnpm test` | All tests (90 today) |
 | `pnpm typecheck` | Strict TypeScript across all three packages |
 | `pnpm build` | Production build of everything |
 | `pnpm db:up` / `db:down` | Local MongoDB in Docker |
@@ -72,11 +72,36 @@ reuse detection, `GET /me`, `PATCH /me/profile`, zod validation on every route,
 a uniform `{ error: { code, message } }` envelope, helmet, CORS, rate limiting,
 and redacting structured logs.
 
+**The tutor** — `POST /chat/message` streams a reply over SSE, corrects the
+learner, stores each mistake against a closed grammar taxonomy, and awards XP.
+The system prompt is built per CEFR level from `LEVEL_VOICE`, so an A1 learner
+is told "keep sentences under 12 words, no idioms" while a B2 learner is not.
+Memory is assembled fresh each turn under a 1800-token ceiling from four tiers:
+the learner profile, the last 8 turns, a rolling summary, and the ranked
+weakness ledger.
+
+**Progress** — an append-only event log rolled up into daily stats, XP and
+levels, a streak with one silent grace day per week, six skill scores, and a
+ranked weakness ledger that returns the learner's own sentences as evidence.
+`GET /progress/summary`, `/weaknesses`, `/history`, and `POST /progress/events`
+for the few things the client is genuinely the authority on.
+
 **Extension** — a service worker that owns all tokens and all network calls; a
 content script that mounts the pet into an open shadow root so neither side's CSS
-can reach the other; the pet with eight animated states driven by the shared state
-machine; drag with per-site position memory; and a popup with real loading, error,
-empty and signed-out states.
+can reach the other; the pet with eight animated states driven by the shared
+state machine; a chat panel that streams Mochi's reply token by token over a
+long-lived port; synthesised sound (no audio files — it is all Web Audio);
+drag with per-site position memory; a popup and a side-panel dashboard, both
+with real loading, error, empty and signed-out states.
+
+### Running without an OpenAI key
+
+With no `OPENAI_API_KEY` the backend uses a deterministic, rule-based tutor in
+`src/ai/offline.ts`. It catches about ten common learner mistakes and streams
+its reply the same way the real one does. That is why the whole project runs end
+to end on a fresh clone, and why the test suite never makes a network call or
+costs anything. Set the key and `getProvider()` switches to OpenAI with
+structured outputs — nothing else changes.
 
 ## Permissions, and why they are so few
 
