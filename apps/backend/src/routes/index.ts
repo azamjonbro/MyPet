@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './auth.routes.js';
 import meRoutes from './me.routes.js';
 import chatRoutes from './chat.routes.js';
+import progressRoutes from './progress.routes.js';
 import { devAuthEnabled } from '../config/env.js';
 
 const router = Router();
@@ -13,5 +14,6 @@ router.get('/health', (_req, res) => {
 router.use('/auth', authRoutes);
 router.use('/me', meRoutes);
 router.use('/chat', chatRoutes);
+router.use('/progress', progressRoutes);
 
 export default router;

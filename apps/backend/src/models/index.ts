@@ -4,3 +4,5 @@ export { RefreshToken, type RefreshTokenDoc } from './RefreshToken.js';
 export { Conversation, type ConversationDoc } from './Conversation.js';
 export { Mistake, type MistakeDoc } from './Mistake.js';
 export { DailyUsage, type DailyUsageDoc } from './DailyUsage.js';
+export { Event, EVENT_TYPES, type EventDoc, type EventType } from './Event.js';
+export { DailyStat, type DailyStatDoc } from './DailyStat.js';
