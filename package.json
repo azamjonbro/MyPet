@@ -3,14 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev": "pnpm --filter @pet/shared build && pnpm --parallel --filter @pet/shared --filter \"./apps/*\" dev",
     "dev:backend": "pnpm --filter @pet/backend dev",
     "dev:extension": "pnpm --filter @pet/extension dev",
     "build": "pnpm --filter @pet/shared build && pnpm --parallel --filter \"./apps/*\" build",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "typecheck": "pnpm --filter @pet/shared build && pnpm -r typecheck",
+    "test": "pnpm --filter @pet/shared build && pnpm -r test",
     "lint": "pnpm -r lint",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down"
