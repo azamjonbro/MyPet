@@ -1,0 +1,36 @@
+# systemd unit for the AI English Pet API.
+#
+#   sudo cp deploy/pet-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pet-api
+#
+# Matches how the other Node services on this box are run: nvm's node, an
+# EnvironmentFile for the secrets, and a memory cap so one bad day here cannot
+# take the whole VPS down with it.
+
+[Unit]
+Description=AI English Pet API
+After=network.target mongod.service
+Requires=mongod.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ai-english-pet
+EnvironmentFile=/etc/ai-english-pet.env
+ExecStart=/root/.nvm/versions/node/v22.16.0/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# The box has under 700MB free. The API idles well below this; if it ever
+# climbs past it, restarting is better than the OOM killer picking a victim.
+MemoryMax=320M
+
+StandardOutput=append:/var/log/pet-api.log
+StandardError=append:/var/log/pet-api.log
+
+# It reads its code and writes nothing but logs.
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
