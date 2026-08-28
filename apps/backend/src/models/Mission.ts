@@ -9,6 +9,9 @@ const task = new Schema(
     title: { type: String, required: true },
     detail: { type: String, required: true },
     topicId: { type: String, enum: GRAMMAR_TOPICS, default: null },
+    /** `usewords` tasks only: what was asked for, and what has been used so far. */
+    words: { type: [String], default: undefined },
+    usedWords: { type: [String], default: undefined },
     target: { type: Number, required: true, min: 1 },
     progress: { type: Number, default: 0, min: 0 },
     done: { type: Boolean, default: false },

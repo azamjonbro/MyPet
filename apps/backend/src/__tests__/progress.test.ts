@@ -138,6 +138,7 @@ describe('GET /progress/weaknesses', () => {
       level: 'A1', targetLevel: 'B2', targetExam: 'NONE', currentDay: 1,
       weakTopics: weak.map((w) => w.topicId), recentMistakes: [], summary: null,
       displayName: 'Aziz',
+      studyWords: [],
     });
     expect(prompt).toContain('Past Simple · irregular verbs');
   });

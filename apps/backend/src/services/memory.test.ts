@@ -12,6 +12,7 @@ describe('prompt assembly', () => {
     recentMistakes: [],
     summary: null,
     displayName: 'Aziz',
+    studyWords: [],
   };
 
   it('tells an A1 learner a much tighter sentence limit than a B2 one', () => {

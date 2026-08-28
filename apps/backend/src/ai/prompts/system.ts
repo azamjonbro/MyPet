@@ -9,6 +9,8 @@ export interface PromptContext {
   recentMistakes: { original: string; corrected: string; topicId: GrammarTopic }[];
   summary: string | null;
   displayName: string;
+  /** Words the learner asked to learn. Tier 4 of the memory system. */
+  studyWords: string[];
 }
 
 /**
@@ -59,6 +61,16 @@ export function buildSystemPrompt(ctx: PromptContext): string {
       '',
       '## Recent corrections (do not repeat the same explanation twice)',
       ...ctx.recentMistakes.map((m) => `- "${m.original}" → "${m.corrected}" (${TOPIC_LABEL[m.topicId]})`),
+    );
+  }
+
+  if (ctx.studyWords.length > 0) {
+    lines.push(
+      '',
+      '## Words this learner is trying to learn',
+      ctx.studyWords.map((w) => `"${w}"`).join(', '),
+      'Use one or two of them naturally in your reply, and ask a question that makes the learner use one back.',
+      'Never list them or say you were told to use them — just use them.',
     );
   }
 

@@ -4,6 +4,7 @@ import { Mistake, type ConversationDoc, type ProfileDoc, type UserDoc } from '..
 import { buildSystemPrompt } from '../ai/prompts/system.js';
 import type { ProviderMessage } from '../ai/provider.js';
 import { planDayFor } from '../utils/date.js';
+import { wordsForPrompt } from './vocab.service.js';
 
 /**
  * Tiered memory (§J). Assembled fresh every turn under a hard token ceiling.
@@ -57,6 +58,7 @@ export async function assembleContext(
   todayLocal: string,
 ): Promise<AssembledContext> {
   const weak = await topWeakTopics(user._id.toString());
+  const studyWords = await wordsForPrompt(user._id.toString());
 
   const recent = await Mistake.find({ userId: user._id, resolved: false })
     .sort({ createdAt: -1 })
@@ -77,6 +79,7 @@ export async function assembleContext(
     })),
     summary: conversation.summary ?? null,
     displayName: user.displayName,
+    studyWords,
   });
 
   // Tier 1: the most recent turns, verbatim.

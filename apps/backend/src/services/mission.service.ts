@@ -1,5 +1,7 @@
 import {
+  CUSTOM_TASK_XP,
   LEVEL_VOICE,
+  MAX_CUSTOM_TASKS_PER_DAY,
   XP_AWARD,
   XP_PER_TASK_TYPE,
   isServerVerified,
@@ -8,6 +10,7 @@ import {
   type Mission as MissionView,
   type MissionHistoryEntry,
   type MissionPlan,
+  type CustomTaskRequest,
   type MissionTask,
   type Skill,
   type TaskKind,
@@ -18,6 +21,7 @@ import { templatePlan } from '../ai/offline.js';
 import { buildMissionPrompt } from '../ai/prompts/mission.js';
 import { assertWithinBudget, recordUsage } from '../ai/budget.js';
 import { topWeakTopics } from './memory.service.js';
+import { wordsForPrompt } from './vocab.service.js';
 import { record } from './analytics.service.js';
 import { ensureProfile } from './profile.service.js';
 import { AppError } from '../utils/errors.js';
@@ -49,9 +53,13 @@ function targetFor(kind: TaskKind, level: CefrLevel, dailyGoalMinutes: number): 
       return 3;
     case 'read':
       return clamp(dailyGoalMinutes / 3, 5, 30);
+    case 'usewords':
+      // Overridden at creation from how many words are actually on the list.
+      return 3;
     case 'write':
     case 'listen':
     case 'speak':
+    case 'own':
       return 1;
   }
 }
@@ -86,6 +94,8 @@ function taskView(task: MissionDoc['tasks'][number]): MissionTask {
     progress: task.progress,
     done: task.done,
     xp: task.xp,
+    ...(task.words?.length ? { words: [...task.words] } : {}),
+    ...(task.usedWords?.length ? { usedWords: [...task.usedWords] } : {}),
   };
 }
 
@@ -166,6 +176,32 @@ export async function todayMission(userId: string): Promise<MissionDoc> {
     plan = templatePlan(request);
   }
 
+  const tasks = materialise(plan, {
+    level: profile.level,
+    dailyGoalMinutes: profile.dailyGoalMinutes,
+    weakTopic: weak[0]?.topicId ?? null,
+  });
+
+  // The learner's own words, if they have asked for any. This task is not the
+  // planner's to invent — it exists only because a real list exists.
+  const ownWords = await wordsForPrompt(userId, 3);
+  if (ownWords.length >= 2) {
+    tasks.push({
+      id: `usewords-${tasks.length + 1}`,
+      kind: 'usewords',
+      skill: 'vocabulary',
+      title: 'Use your own words',
+      detail: `Use these in a message to Mochi: ${ownWords.join(', ')}.`,
+      topicId: null,
+      words: ownWords,
+      usedWords: [],
+      target: ownWords.length,
+      progress: 0,
+      done: false,
+      xp: XP_PER_TASK_TYPE.vocabulary,
+    });
+  }
+
   const doc = {
     userId: user._id,
     localDate: today,
@@ -173,11 +209,7 @@ export async function todayMission(userId: string): Promise<MissionDoc> {
     level: profile.level,
     title: plan.title,
     focus: plan.focus,
-    tasks: materialise(plan, {
-      level: profile.level,
-      dailyGoalMinutes: profile.dailyGoalMinutes,
-      weakTopic: weak[0]?.topicId ?? null,
-    }),
+    tasks,
     source,
   };
 
@@ -273,6 +305,8 @@ async function applyProgress(
 export interface ChatTurnSignals {
   vocabLearned: number;
   correctedTopics: GrammarTopic[];
+  /** Words from the learner's own list that appeared in this message. */
+  usedWords: string[];
 }
 
 /**
@@ -293,6 +327,18 @@ export async function recordChatTurn(
   const mission = await Mission.findOne({ userId, localDate: today });
   if (!mission) return NO_PROGRESS;
 
+  // A word only counts once for the day: saying "commute" five times in one
+  // afternoon is one word practised, not five.
+  const wordTask = mission.tasks.find((t) => t.kind === 'usewords' && !t.done);
+  const freshWords = wordTask
+    ? signals.usedWords.filter(
+        (word) => !(wordTask.usedWords ?? []).some((seen) => seen.toLowerCase() === word.toLowerCase()),
+      )
+    : [];
+  if (wordTask && freshWords.length > 0) {
+    wordTask.usedWords = [...(wordTask.usedWords ?? []), ...freshWords];
+  }
+
   return applyProgress(
     mission,
     (task) => {
@@ -301,6 +347,8 @@ export async function recordChatTurn(
           return 1;
         case 'vocab':
           return signals.vocabLearned;
+        case 'usewords':
+          return freshWords.length;
         case 'fix':
           return task.topicId === null
             ? signals.correctedTopics.length === 0 ? 1 : 0
@@ -356,6 +404,69 @@ export async function completeTask(
     today,
   );
   return { mission, progress };
+}
+
+/**
+ * A task the learner set themselves.
+ *
+ * Capped at two a day and worth less than a planned task, for one reason: it
+ * is the only task in the system nobody checks. An uncapped self-set task with
+ * full XP is not a plan, it is a text box that prints levels.
+ */
+export async function addCustomTask(
+  userId: string,
+  input: CustomTaskRequest,
+): Promise<MissionDoc> {
+  const mission = await todayMission(userId);
+
+  const own = mission.tasks.filter((task) => task.kind === 'own');
+  if (own.length >= MAX_CUSTOM_TASKS_PER_DAY) {
+    throw AppError.forbidden(
+      `Two of your own tasks a day is the limit. Finish these first, or add more tomorrow.`,
+    );
+  }
+
+  mission.tasks.push({
+    id: `own-${Date.now().toString(36)}`,
+    kind: 'own',
+    skill: input.skill ?? 'writing',
+    title: input.title,
+    detail: input.detail && input.detail.length > 0 ? input.detail : 'Set by you.',
+    topicId: null,
+    target: 1,
+    progress: 0,
+    done: false,
+    xp: CUSTOM_TASK_XP,
+  });
+
+  // Adding a task to a finished day reopens it; otherwise the new task could
+  // never be completed and the day would show as done with work outstanding.
+  if (mission.status === 'complete') {
+    mission.status = 'active';
+    mission.completedAt = null;
+  }
+
+  await mission.save();
+  return mission;
+}
+
+export async function removeCustomTask(userId: string, taskId: string): Promise<MissionDoc> {
+  const user = await User.findById(userId).select('timezone').lean();
+  if (!user) throw AppError.notFound('That account no longer exists.');
+
+  const mission = await Mission.findOne({ userId, localDate: localDate(user.timezone) });
+  if (!mission) throw AppError.notFound('There is no mission for today yet.');
+
+  const task = mission.tasks.find((t) => t.id === taskId);
+  if (!task) throw AppError.notFound('That task is not part of today.');
+  if (task.kind !== 'own') throw AppError.forbidden('Only a task you added yourself can be removed.');
+  // XP already paid is not clawed back; deleting a finished task would let a
+  // learner keep the XP and hide the evidence.
+  if (task.done) throw AppError.forbidden('That one is already done — it stays.');
+
+  task.deleteOne();
+  await mission.save();
+  return mission;
 }
 
 export async function missionHistory(userId: string, limit = 14): Promise<MissionHistoryEntry[]> {

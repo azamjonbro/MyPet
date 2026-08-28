@@ -1,8 +1,11 @@
 import type { NextFunction, Request, Response } from 'express';
+import type { CustomTaskRequest } from '@pet/shared';
 import {
   COMPLETION_BONUS,
+  addCustomTask,
   completeTask,
   missionHistory,
+  removeCustomTask,
   todayMission,
   toMissionView,
 } from '../services/mission.service.js';
@@ -29,6 +32,26 @@ export async function postComplete(req: Request, res: Response, next: NextFuncti
       xpAwarded: progress.xpAwarded,
       missionCompleted: progress.missionCompleted,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function postCustomTask(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const mission = await addCustomTask(userIdOf(req), req.body as CustomTaskRequest);
+    res.status(201).json({ mission: toMissionView(mission), completionBonus: COMPLETION_BONUS });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteCustomTask(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const taskId = req.params.taskId;
+    if (typeof taskId !== 'string' || !taskId) throw AppError.notFound('That task is not part of today.');
+    const mission = await removeCustomTask(userIdOf(req), taskId);
+    res.json({ mission: toMissionView(mission), completionBonus: COMPLETION_BONUS });
   } catch (err) {
     next(err);
   }

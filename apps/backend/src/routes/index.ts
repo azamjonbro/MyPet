@@ -5,6 +5,7 @@ import chatRoutes from './chat.routes.js';
 import progressRoutes from './progress.routes.js';
 import missionRoutes from './missions.routes.js';
 import notionRoutes from './notion.routes.js';
+import vocabRoutes from './vocab.routes.js';
 import { devAuthEnabled } from '../config/env.js';
 
 const router = Router();
@@ -19,5 +20,6 @@ router.use('/chat', chatRoutes);
 router.use('/progress', progressRoutes);
 router.use('/missions', missionRoutes);
 router.use('/notion', notionRoutes);
+router.use('/vocab', vocabRoutes);
 
 export default router;

@@ -181,9 +181,12 @@ const DATABASE_SCHEMA: Record<NotionTarget, Record<string, unknown>> = {
 const title = (text: string): NotionPropertyValue => ({
   title: [{ type: 'text', text: { content: trim(text, 200) } }],
 });
-const richText = (text: string): NotionPropertyValue => ({
-  rich_text: [{ type: 'text', text: { content: trim(text, 1900) } }],
-});
+const richText = (text: string): NotionPropertyValue => {
+  // A word the learner added has no definition yet; an empty rich_text is a
+  // blank cell, which is what Notion expects — not a block with empty content.
+  const content = trim(text, 1900);
+  return content ? { rich_text: [{ type: 'text', text: { content } }] } : { rich_text: [] };
+};
 const date = (isoDate: string): NotionPropertyValue => ({ date: { start: isoDate } });
 const number = (value: number): NotionPropertyValue => ({ number: value });
 const select = (name: string): NotionPropertyValue => ({ select: { name: trim(name, 100) } });
@@ -261,7 +264,8 @@ export async function sync(userId: string, targets: NotionTarget[] = [...NOTION_
       for (const row of rows) {
         const pageId = await client.createPage(token, databaseId, {
           Word: title(row.word),
-          Definition: richText(row.definition),
+          // The learner's own note stands in when Mochi has not defined it yet.
+          Definition: richText(row.definition || row.note),
           Example: richText(row.example),
           Learned: date(row.localDate),
         });

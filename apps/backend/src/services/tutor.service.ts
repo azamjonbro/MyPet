@@ -20,6 +20,7 @@ import { ensureProfile } from './profile.service.js';
 import { applyActivity } from './streak.service.js';
 import { record } from './analytics.service.js';
 import { recordChatTurn } from './mission.service.js';
+import { findUsedWords, recordUsage as recordWordUsage, wordsForPrompt } from './vocab.service.js';
 import { AppError } from '../utils/errors.js';
 import { localDate } from '../utils/date.js';
 import { logger } from '../config/logger.js';
@@ -61,6 +62,12 @@ export async function runTurn(input: TurnInput): Promise<void> {
     ts: Date.now(),
   });
   await conversation.save();
+
+  // Did this message use any of the words the learner is trying to learn?
+  // Checked before the model is called, so a slow reply cannot lose the credit.
+  const tracked = await wordsForPrompt(input.userId, 40);
+  const usedWords = findUsedWords(input.text, tracked);
+  if (usedWords.length > 0) await recordWordUsage(input.userId, usedWords);
 
   const context = await assembleContext(user, profile, conversation, today);
   const provider = getProvider();
@@ -125,6 +132,7 @@ export async function runTurn(input: TurnInput): Promise<void> {
   const mission = await recordChatTurn(input.userId, today, {
     vocabLearned: wordsLearned,
     correctedTopics: reply.corrections.map((c) => c.topicId as GrammarTopic),
+    usedWords,
   });
   if (mission.completedTasks.length > 0) {
     input.emit({

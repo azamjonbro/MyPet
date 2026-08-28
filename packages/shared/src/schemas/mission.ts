@@ -12,11 +12,38 @@ import { localDateSchema } from './common.js';
  * purpose: a task the server verifies must never be completable by asking,
  * because that turns the 90-day plan into a button you press.
  */
-export const TASK_KINDS = ['chat', 'vocab', 'fix', 'write', 'read', 'listen', 'speak'] as const;
+export const TASK_KINDS = [
+  'chat',
+  'vocab',
+  'fix',
+  'write',
+  'read',
+  'listen',
+  'speak',
+  /** Use the words the learner asked to learn. Server-verified from their own messages. */
+  'usewords',
+  /** Something the learner set themselves. */
+  'own',
+] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
+/**
+ * What the planner may choose from.
+ *
+ * `usewords` and `own` are not on this list because they are not the model's
+ * to invent: one is generated from the learner's word list, the other is
+ * written by the learner. Giving the model the same enum for both would let a
+ * generation quietly fabricate a task about words nobody added.
+ */
+export const PLANNABLE_KINDS = ['chat', 'vocab', 'fix', 'write', 'read', 'listen', 'speak'] as const;
+export type PlannableKind = (typeof PLANNABLE_KINDS)[number];
+
 /** Kinds advanced from the server's own event stream. The rest are self-reported. */
-export const SERVER_VERIFIED_KINDS = ['chat', 'vocab', 'fix'] as const;
+export const SERVER_VERIFIED_KINDS = ['chat', 'vocab', 'fix', 'usewords'] as const;
+
+/** A learner-set task is worth real XP, but less than a planned one, and is capped per day. */
+export const CUSTOM_TASK_XP = 20;
+export const MAX_CUSTOM_TASKS_PER_DAY = 2;
 
 export function isServerVerified(kind: TaskKind): boolean {
   return (SERVER_VERIFIED_KINDS as readonly string[]).includes(kind);
@@ -30,6 +57,9 @@ export const missionTaskSchema = z.object({
   detail: z.string().min(1).max(300),
   /** Set only on `fix` tasks — which weakness this one is aimed at. */
   topicId: z.enum(GRAMMAR_TOPICS).nullable(),
+  /** Set only on `usewords` tasks: the words asked for, and the ones already used. */
+  words: z.array(z.string()).max(10).optional(),
+  usedWords: z.array(z.string()).max(10).optional(),
   target: z.number().int().min(1).max(60),
   progress: z.number().int().min(0),
   done: z.boolean(),
@@ -43,7 +73,7 @@ export const missionSchema = z.object({
   level: z.enum(CEFR_LEVELS),
   title: z.string().min(1).max(90),
   focus: z.string().min(1).max(160),
-  tasks: z.array(missionTaskSchema).min(1).max(5),
+  tasks: z.array(missionTaskSchema).min(1).max(8),
   status: z.enum(['active', 'complete']),
   completedAt: z.string().nullable(),
   xpAwarded: z.number().int().min(0),
@@ -78,7 +108,7 @@ export const missionPlanSchema = z.object({
   tasks: z
     .array(
       z.object({
-        kind: z.enum(TASK_KINDS),
+        kind: z.enum(PLANNABLE_KINDS),
         skill: z.enum(SKILLS),
         title: z.string().min(1).max(90),
         detail: z.string().min(1).max(300),
@@ -88,6 +118,14 @@ export const missionPlanSchema = z.object({
     .max(4),
 });
 export type MissionPlan = z.infer<typeof missionPlanSchema>;
+
+/** What the learner may decide about a task of their own. Not the XP. */
+export const customTaskRequestSchema = z.object({
+  title: z.string().trim().min(1).max(90),
+  detail: z.string().trim().max(300).optional(),
+  skill: z.enum(SKILLS).optional(),
+});
+export type CustomTaskRequest = z.infer<typeof customTaskRequestSchema>;
 
 export const missionHistoryEntrySchema = z.object({
   localDate: localDateSchema,
