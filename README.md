@@ -41,8 +41,9 @@ pnpm dev            # backend on :4100 + extension dev build, in parallel
 Then in Chrome: **chrome://extensions → Developer mode → Load unpacked →
 `apps/extension/.output/chrome-mv3`**.
 
-Open the popup, enter any email, and press **Start learning**. Visit
-`https://www.google.com` and Mochi appears in the corner.
+Open the popup, enter any email, and press **Start learning**. Answer the three
+onboarding questions — that is what starts the 90-day clock and plans your first
+mission. Visit `https://www.google.com` and Mochi appears in the corner.
 
 > Port 4100, not 4000 — 4000 is already taken on this machine by another project.
 
@@ -91,13 +92,18 @@ words, stop making one specific mistake) advance from its own event stream and
 cannot be ticked off by asking; only the ones nobody else can witness — writing
 something, reading for ten minutes, saying a sentence out loud — have a Done
 button. Finishing all of them pays a completion bonus once.
+`GET /missions/today`, `POST /missions/today/tasks/:taskId/complete`,
+`GET /missions/history`, and `POST /me/onboarding` — the one place a plan
+can start.
 
 **Notion** — an optional export of the learner's vocabulary, their corrections
 and their finished days into their own workspace. The extension never sees a
 Notion token: the backend runs the whole OAuth exchange, seals the token with
 AES-256-GCM, and makes every write itself. Every exported row stores the id of
 the Notion page it became, so a sync that fails half way leaves the rest
-pending instead of duplicating what already landed.
+pending instead of duplicating what already landed. `GET /notion/status`,
+`GET /notion/connect`, `GET /notion/callback`, `POST /notion/sync`,
+`POST /notion/disconnect`.
 
 **Reminders** — at most two notifications a day, inside a three-hour window
 after the hour the learner picked, never after ten at night, never twice for
