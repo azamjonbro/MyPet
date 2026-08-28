@@ -1,9 +1,16 @@
 import type {
   AuthTokens,
   ChatStreamEvent,
+  CompleteTaskResponse,
   HistoryDay,
   MeResponse,
+  MissionResponse,
+  NotionStatus,
+  NotionSyncResult,
+  NotionTarget,
+  OnboardingRequest,
   ProgressSummary,
+  UpdateSettingsRequest,
   Weakness,
 } from '@pet/shared';
 import { localStore, sessionStore } from './storage.js';
@@ -122,6 +129,44 @@ export const api = {
   async history(days = 14): Promise<HistoryDay[]> {
     const res = (await authed(`/progress/history?days=${days}`)) as { days: HistoryDay[] };
     return res.days;
+  },
+
+  onboarding(input: OnboardingRequest): Promise<MeResponse> {
+    return authed('/me/onboarding', { method: 'POST', body: JSON.stringify(input) }) as Promise<MeResponse>;
+  },
+
+  updateSettings(patch: UpdateSettingsRequest): Promise<MeResponse> {
+    return authed('/me/settings', { method: 'PATCH', body: JSON.stringify(patch) }) as Promise<MeResponse>;
+  },
+
+  missionToday(): Promise<MissionResponse> {
+    return authed('/missions/today') as Promise<MissionResponse>;
+  },
+
+  completeTask(taskId: string): Promise<CompleteTaskResponse> {
+    return authed(`/missions/today/tasks/${encodeURIComponent(taskId)}/complete`, {
+      method: 'POST',
+    }) as Promise<CompleteTaskResponse>;
+  },
+
+  notionStatus(): Promise<NotionStatus> {
+    return authed('/notion/status') as Promise<NotionStatus>;
+  },
+
+  async notionAuthorizeUrl(): Promise<string> {
+    const res = (await authed('/notion/connect')) as { authorizeUrl: string };
+    return res.authorizeUrl;
+  },
+
+  notionSync(targets?: NotionTarget[]): Promise<NotionSyncResult> {
+    return authed('/notion/sync', {
+      method: 'POST',
+      body: JSON.stringify(targets ? { targets } : {}),
+    }) as Promise<NotionSyncResult>;
+  },
+
+  async notionDisconnect(): Promise<void> {
+    await authed('/notion/disconnect', { method: 'POST' });
   },
 };
 

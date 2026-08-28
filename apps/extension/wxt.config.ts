@@ -25,11 +25,12 @@ export default defineConfig({
     // The pet only runs on google.com out of the box; "let the pet follow me
     // everywhere" is granted at runtime from onboarding and registered with
     // chrome.scripting.registerContentScripts.
-    permissions: ['storage', 'alarms', 'scripting', 'sidePanel'],
+    permissions: ['storage', 'alarms', 'scripting', 'sidePanel', 'notifications'],
     optional_permissions: ['identity'],
     host_permissions: [apiHost],
     optional_host_permissions: ['https://*/*', 'http://*/*'],
 
+    icons: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png', 128: 'icon/128.png' },
     action: { default_title: 'AI English Pet' },
     side_panel: { default_path: 'sidepanel.html' },
   },

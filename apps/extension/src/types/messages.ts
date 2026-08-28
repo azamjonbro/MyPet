@@ -2,9 +2,15 @@ import type {
   ChatStreamEvent,
   HistoryDay,
   MeResponse,
+  MissionResponse,
+  NotionStatus,
+  NotionSyncResult,
+  NotionTarget,
+  OnboardingRequest,
   PetEvent,
   PetState,
   ProgressSummary,
+  UpdateSettingsRequest,
   Weakness,
 } from '@pet/shared';
 
@@ -23,7 +29,17 @@ export type Request =
   | { type: 'PET_POSITION_SET'; host: string; x: number; y: number }
   | { type: 'PET_POSITION_GET'; host: string }
   | { type: 'HOST_MUTE'; host: string }
-  | { type: 'PROGRESS_GET' };
+  | { type: 'PROGRESS_GET' }
+  | { type: 'ONBOARDING_SUBMIT'; input: OnboardingRequest }
+  | { type: 'SETTINGS_UPDATE'; patch: UpdateSettingsRequest }
+  | { type: 'MISSION_GET' }
+  | { type: 'MISSION_TASK_COMPLETE'; taskId: string }
+  | { type: 'NOTION_STATUS' }
+  | { type: 'NOTION_CONNECT' }
+  | { type: 'NOTION_SYNC'; targets?: NotionTarget[] }
+  | { type: 'NOTION_DISCONNECT' }
+  | { type: 'FOLLOW_EVERYWHERE_GET' }
+  | { type: 'FOLLOW_EVERYWHERE_SET'; enabled: boolean };
 
 export interface ProgressBundle {
   summary: ProgressSummary;
@@ -41,13 +57,19 @@ export type Response =
   | { ok: true; session: SessionState }
   | { ok: true; progress: ProgressBundle }
   | { ok: true; position: { x: number; y: number } | null }
+  | { ok: true; mission: MissionResponse }
+  | { ok: true; notion: NotionStatus }
+  | { ok: true; sync: NotionSyncResult }
+  | { ok: true; enabled: boolean }
   | { ok: true }
   | { ok: false; code: string; message: string };
 
 /** Pushed from the worker to any open pet — never a reply to a request. */
 export type Push =
   | { type: 'PET_STATE'; state: PetState }
-  | { type: 'SESSION_CHANGED'; session: SessionState };
+  | { type: 'SESSION_CHANGED'; session: SessionState }
+  /** Something changed today's mission — the pet and the panels re-read it. */
+  | { type: 'MISSION_CHANGED'; remaining: number };
 
 /**
  * Chat runs over a long-lived port rather than one-shot messages, because a
