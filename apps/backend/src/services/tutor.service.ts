@@ -160,7 +160,13 @@ function awardFor(reply: TutorReply): number {
   return xp;
 }
 
-/** Small, bounded nudges. Real skill scoring arrives with analytics in Phase 4. */
+/**
+ * Small, bounded nudges from a single turn.
+ *
+ * Chatting is evidence about writing, grammar and vocabulary and about nothing
+ * else — so the other three skills move only when a mission task that actually
+ * exercised them is finished (see mission.service).
+ */
 function bumpSkills(
   profile: { skills: Record<string, number | undefined> },
   corrections: Correction[],

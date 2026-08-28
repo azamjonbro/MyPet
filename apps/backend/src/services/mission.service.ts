@@ -27,6 +27,9 @@ import { logger } from '../config/logger.js';
 /** Paid once, on top of the task XP, when every task in a day is done. */
 export const COMPLETION_BONUS = XP_AWARD.MISSION_COMPLETED;
 
+/** Skill points for finishing one task. Ninety days of missions reaches 100. */
+const SKILL_GAIN = 2;
+
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(n)));
 
 /**
@@ -241,7 +244,21 @@ async function applyProgress(
 
   mission.xpAwarded += xp;
   await mission.save();
-  await Profile.updateOne({ userId: mission.userId }, { $inc: { xp } });
+
+  // Finishing a task is the only evidence we have for the skills a chat turn
+  // cannot show — nobody can tell from a conversation whether the learner read
+  // for ten minutes or said a sentence out loud, but finishing that task says
+  // they did. The clamp is a second update because $inc and $min cannot touch
+  // the same field in one.
+  const skillBumps: Record<string, number> = {};
+  for (const task of completed) {
+    skillBumps[`skills.${task.skill}`] = (skillBumps[`skills.${task.skill}`] ?? 0) + SKILL_GAIN;
+  }
+  await Profile.updateOne({ userId: mission.userId }, { $inc: { xp, ...skillBumps } });
+  await Profile.updateOne(
+    { userId: mission.userId },
+    { $min: Object.fromEntries(Object.keys(skillBumps).map((key) => [key, 100])) },
+  );
 
   for (const task of completed) {
     record(mission.userId, 'mission.task.progress', today, 1, { taskId: task.id, kind: task.kind });
