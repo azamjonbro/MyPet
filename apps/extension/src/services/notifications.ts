@@ -106,9 +106,9 @@ export async function runChecks(): Promise<CheckOutcome> {
   const me = await localStore.getCachedMe<MeResponse>();
   if (!me) return outcome; // signed out: nothing to remind anybody about
 
+  // The policy lives in dueReminders, in one piece, rather than being spread
+  // between here and there.
   const settings = me.user.settings.notifications;
-  if (settings.quietMode) return outcome;
-
   const { hour, date } = localNow(me.user.timezone);
   const log = await localStore.getNotifyLog();
   const due = dueReminders({ hour, date, settings, log });
