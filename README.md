@@ -62,7 +62,7 @@ switches on as soon as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
 | `pnpm dev` | Backend and extension together |
 | `pnpm dev:backend` | Backend only, watch mode |
 | `pnpm dev:extension` | Extension only, with content-script HMR |
-| `pnpm test` | All tests (126 today) |
+| `pnpm test` | All tests (127 today) |
 | `pnpm typecheck` | Strict TypeScript across all three packages |
 | `pnpm build` | Production build of everything |
 | `pnpm db:up` / `db:down` | Local MongoDB in Docker |
@@ -91,7 +91,10 @@ but can never mint a reward. Tasks the server can see (chat with Mochi, collect
 words, stop making one specific mistake) advance from its own event stream and
 cannot be ticked off by asking; only the ones nobody else can witness — writing
 something, reading for ten minutes, saying a sentence out loud — have a Done
-button. Finishing all of them pays a completion bonus once.
+button. Finishing all of them pays a completion bonus once, and finishing one
+is the only evidence the app has for the skills a typed conversation cannot
+show — nobody can tell from a chat whether the learner listened to a podcast,
+but finishing that task says they did.
 `GET /missions/today`, `POST /missions/today/tasks/:taskId/complete`,
 `GET /missions/history`, and `POST /me/onboarding` — the one place a plan
 can start.
