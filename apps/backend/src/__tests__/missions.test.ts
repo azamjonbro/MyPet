@@ -173,7 +173,8 @@ describe('mission progress', () => {
     let last: { xpAwarded: number; missionCompleted: boolean } | null = null;
     for (let i = 0; i < chat.target + 6; i++) {
       const res = await say(t, `Today I read a book about ${i} birds.`);
-      const frames = String(res.text)
+      // The custom SSE parser above hands the raw stream back as the body.
+      const frames = String(res.body ?? res.text)
         .split('\n\n')
         .filter((f) => f.startsWith('data:'))
         .map((f) => JSON.parse(f.slice(5).trim()) as { type: string; missionCompleted?: boolean; xpAwarded?: number });

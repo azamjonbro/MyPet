@@ -21,7 +21,7 @@ export const PET_EVENTS = [
   'CHAT_CLOSE',
   'IDLE_TIMEOUT',
   'ANIMATION_END',
-  'MISSION_DUE',     // pushed from the service worker
+  'MISSION_DUE',
   'TASK_DONE',
   'XP_AWARDED',
   'MISSION_COMPLETE',
