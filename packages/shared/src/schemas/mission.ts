@@ -12,7 +12,7 @@ import { localDateSchema } from './common.js';
  * purpose: a task the server verifies must never be completable by asking,
  * because that turns the 90-day plan into a button you press.
  */
-export const TASK_KINDS = ['chat', 'vocab', 'fix', 'write', 'read', 'speak'] as const;
+export const TASK_KINDS = ['chat', 'vocab', 'fix', 'write', 'read', 'listen', 'speak'] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 /** Kinds advanced from the server's own event stream. The rest are self-reported. */

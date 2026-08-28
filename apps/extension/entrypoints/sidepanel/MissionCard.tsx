@@ -7,6 +7,7 @@ const KIND_ICON: Record<MissionTask['kind'], string> = {
   fix: '🎯',
   write: '✍️',
   read: '📰',
+  listen: '🎧',
   speak: '🗣️',
 };
 

@@ -122,8 +122,8 @@ describe('mission progress', () => {
   it('pays XP for a task only the learner can see, once', async () => {
     const t = await token();
     const { body } = await today(t);
-    const manual = (body.mission.tasks as Task[]).find((task) =>
-      ['write', 'speak', 'read'].includes(task.kind),
+    const manual = (body.mission.tasks as Task[]).find(
+      (task) => !['chat', 'vocab', 'fix'].includes(task.kind),
     )!;
 
     const first = await request(app)
@@ -162,7 +162,7 @@ describe('mission progress', () => {
     const tasks = body.mission.tasks as Task[];
 
     // Finish everything the learner reports themselves.
-    for (const task of tasks.filter((task) => ['write', 'speak', 'read'].includes(task.kind))) {
+    for (const task of tasks.filter((task) => !['chat', 'vocab', 'fix'].includes(task.kind))) {
       await request(app)
         .post(`/api/v1/missions/today/tasks/${task.id}/complete`)
         .set('authorization', `Bearer ${t}`)

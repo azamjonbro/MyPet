@@ -39,6 +39,7 @@ export function buildMissionPrompt(ctx: MissionPromptContext): string {
     '- fix: practise one grammar point the learner keeps getting wrong.',
     '- write: write a short text. Give the exact prompt.',
     '- read: read something in English for a few minutes. Suggest what.',
+    '- listen: watch or listen to something short in English. Say what to listen for.',
     '- speak: say something out loud. Give the exact sentence or question.',
     '',
     'Include at least one `chat` task — that is where the tutoring happens.',

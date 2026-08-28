@@ -211,6 +211,7 @@ interface Theme {
   chat: string;
   write: string;
   read: string;
+  listen: string;
   speak: string;
 }
 
@@ -221,6 +222,7 @@ const THEMES: Theme[] = [
     chat: 'Tell Mochi three things you did today. Use full sentences.',
     write: 'Write four sentences about your morning.',
     read: 'Read one short news story in English for five minutes.',
+    listen: 'Listen to a short podcast about daily life. Write down two words you hear.',
     speak: 'Say out loud: "Today I woke up at ... and then I ..."',
   },
   {
@@ -229,6 +231,7 @@ const THEMES: Theme[] = [
     chat: 'Describe your favourite meal to Mochi. Say why you like it.',
     write: 'Write a short recipe in five steps.',
     read: 'Read a recipe in English and find three new words.',
+    listen: 'Watch a two-minute cooking video in English. Listen for the verbs.',
     speak: 'Order a coffee out loud, the way you would in a cafe.',
   },
   {
@@ -237,6 +240,7 @@ const THEMES: Theme[] = [
     chat: 'Describe a friend to Mochi: how they look, and what they are like.',
     write: 'Write five sentences about someone in your family.',
     read: 'Read a short profile or interview in English.',
+    listen: 'Listen to someone describe their family. Note how they say ages.',
     speak: 'Introduce yourself out loud in four sentences.',
   },
   {
@@ -245,6 +249,7 @@ const THEMES: Theme[] = [
     chat: 'Tell Mochi what you are working on this week.',
     write: 'Write a short message asking a colleague for help.',
     read: 'Read one page of something about your field, in English.',
+    listen: 'Watch a short talk about work. Listen for how they start sentences.',
     speak: 'Explain your job out loud in three sentences.',
   },
   {
@@ -253,6 +258,7 @@ const THEMES: Theme[] = [
     chat: 'Tell Mochi about your plans for the weekend.',
     write: 'Write four sentences about next year.',
     read: 'Read about an event you would like to go to.',
+    listen: 'Listen to a weather forecast in English. Note the future forms.',
     speak: 'Say three plans out loud, starting with "I am going to ...".',
   },
   {
@@ -261,6 +267,7 @@ const THEMES: Theme[] = [
     chat: 'Describe your city to Mochi. What is good, what is not?',
     write: 'Write five sentences about a place you love.',
     read: 'Read a short travel article in English.',
+    listen: 'Watch a two-minute travel video. Listen for place words: at, in, on.',
     speak: 'Give directions out loud from your home to the nearest shop.',
   },
   {
@@ -269,6 +276,7 @@ const THEMES: Theme[] = [
     chat: 'Tell Mochi a short story about something that happened to you.',
     write: 'Write a story in six sentences. Begin with "Last year ...".',
     read: 'Read a very short story in English.',
+    listen: 'Listen to someone tell a story. Note every past tense verb you catch.',
     speak: 'Tell your story out loud, without reading it.',
   },
   {
@@ -277,6 +285,7 @@ const THEMES: Theme[] = [
     chat: 'Tell Mochi what you think about social media, and why.',
     write: 'Write four sentences: two for, two against.',
     read: 'Read one opinion article in English.',
+    listen: 'Watch a short interview. Listen for how they disagree politely.',
     speak: 'Say your opinion out loud in three sentences.',
   },
 ];
@@ -287,7 +296,7 @@ export function templatePlan(req: MissionPlanRequest): MissionPlan {
   const weak = req.weakTopics[0];
 
   const tasks: MissionPlan['tasks'] = [
-    { kind: 'chat', skill: 'speaking', title: 'Talk to Mochi', detail: theme.chat },
+    { kind: 'chat', skill: 'writing', title: 'Talk to Mochi', detail: theme.chat },
     { kind: 'vocab', skill: 'vocabulary', title: 'Collect new words', detail: 'Ask Mochi for new words while you chat, and use each one in a sentence.' },
   ];
 
@@ -302,12 +311,14 @@ export function templatePlan(req: MissionPlanRequest): MissionPlan {
     tasks.push({ kind: 'read', skill: 'reading', title: 'Read a little', detail: theme.read });
   }
 
-  // Longer goals get one more task; a fifteen-minute learner gets three.
-  tasks.push(
-    req.dailyGoalMinutes >= 30
-      ? { kind: 'write', skill: 'writing', title: 'Write it down', detail: theme.write }
-      : { kind: 'speak', skill: 'speaking', title: 'Say it out loud', detail: theme.speak },
-  );
+  // The fourth task rotates, so a week of missions exercises writing, speaking
+  // and listening rather than the same skill every day.
+  const rotation = [
+    { kind: 'write', skill: 'writing', title: 'Write it down', detail: theme.write },
+    { kind: 'speak', skill: 'speaking', title: 'Say it out loud', detail: theme.speak },
+    { kind: 'listen', skill: 'listening', title: 'Listen for a minute', detail: theme.listen },
+  ] as const;
+  tasks.push({ ...rotation[Math.max(0, req.planDay) % rotation.length]! });
 
   return { title: theme.title, focus: theme.focus, tasks };
 }

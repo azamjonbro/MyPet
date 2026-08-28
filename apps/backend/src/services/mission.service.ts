@@ -50,6 +50,7 @@ function targetFor(kind: TaskKind, level: CefrLevel, dailyGoalMinutes: number): 
     case 'read':
       return clamp(dailyGoalMinutes / 3, 5, 30);
     case 'write':
+    case 'listen':
     case 'speak':
       return 1;
   }
