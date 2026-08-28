@@ -15,7 +15,7 @@ const MARGIN = 8;
 const DRAG_THRESHOLD_PX = 5;
 
 const GREETINGS = [
-  "Hi! I'm Mochi.",
+  "Hi! I'm Mocha.",
   'Ask me anything in English.',
   'Want three new words?',
   'Tell me about your day.',
@@ -194,7 +194,7 @@ export function PetHost() {
             const next = !muted;
             setMuted(next);
             void sfx.setMuted(next);
-            if (!next) sfx.chirp();
+            if (!next) sfx.purr();
           }}
         />
       ) : null}
@@ -202,7 +202,7 @@ export function PetHost() {
       <button
         type="button"
         className="pet-tap"
-        aria-label={chatOpen ? 'Mochi' : 'Mochi, your English pet. Activate to chat.'}
+        aria-label={chatOpen ? 'Mocha' : 'Mocha, your English pet. Activate to chat.'}
         aria-expanded={chatOpen}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

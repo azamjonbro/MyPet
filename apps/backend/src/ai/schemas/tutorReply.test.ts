@@ -50,6 +50,7 @@ describe('tutor reply schema', () => {
       newVocab: [],
       followUp: 'I ___ to the store yesterday.',
       signals: { userStruggling: false, suggestLevelUp: false },
+      action: { type: 'NONE', title: null, dueAtLocal: null, minutes: null, words: null },
     });
     expect(parsed.success).toBe(true);
   });
@@ -63,6 +64,7 @@ describe('tutor reply schema', () => {
       newVocab: [],
       followUp: null,
       signals: { userStruggling: false, suggestLevelUp: false },
+      action: { type: 'NONE', title: null, dueAtLocal: null, minutes: null, words: null },
     });
     expect(parsed.success).toBe(false);
   });

@@ -1,7 +1,7 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from 'mongoose';
 
 /**
- * The learner's words — both the ones Mochi taught and the ones they asked to
+ * The learner's words — both the ones Mocha taught and the ones they asked to
  * learn themselves.
  *
  * One collection rather than two, because to the learner these are one thing:

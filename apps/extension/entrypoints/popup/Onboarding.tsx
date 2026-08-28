@@ -25,7 +25,7 @@ const EXAM_LABEL: Record<TargetExam, string> = {
  * Three questions, asked once.
  *
  * Everything here changes what the tutor does the very next turn — the level
- * sets Mochi's voice, the goal sets how big a day is, the hour is the only
+ * sets Mocha's voice, the goal sets how big a day is, the hour is the only
  * moment we are allowed to interrupt. Nothing is asked that the app would not
  * immediately act on, which is why there is no third page of preferences.
  */
@@ -75,9 +75,9 @@ export function Onboarding({ onDone }: { onDone: (session: SessionState) => void
   return (
     <form className="wrap" onSubmit={finish}>
       <div className="head">
-        <div className="av">🐕</div>
+        <div className="av">🐈</div>
         <div style={{ flex: 1 }}>
-          <b>Let's set up Mochi</b>
+          <b>Let's set up Mocha</b>
           <span>Step {step + 1} of 3</span>
         </div>
       </div>
@@ -161,7 +161,7 @@ export function Onboarding({ onDone }: { onDone: (session: SessionState) => void
       {step === 2 ? (
         <>
           <div className="card">
-            <h2>When should Mochi remind you</h2>
+            <h2>When should Mocha remind you</h2>
             <select
               value={reminderHour}
               onChange={(e) => setReminderHour(Number(e.target.value))}
@@ -183,7 +183,7 @@ export function Onboarding({ onDone }: { onDone: (session: SessionState) => void
               onChange={(e) => setFollowEverywhere(e.target.checked)}
             />
             <span>
-              <b>Let Mochi follow me everywhere</b>
+              <b>Let Mocha follow me everywhere</b>
               <small>Otherwise the pet only appears on Google. You can change this later.</small>
             </span>
           </label>

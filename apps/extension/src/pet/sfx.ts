@@ -1,5 +1,5 @@
 /**
- * Mochi's voice.
+ * Mocha's voice.
  *
  * Everything is synthesised with Web Audio rather than shipped as audio files:
  * the extension stays asset-free, nothing has to be decoded before the first
@@ -116,18 +116,30 @@ class Sfx {
     src.stop(t0 + o.dur + 0.03);
   }
 
-  /** One friendly yip. */
-  yip(at = 0): void {
-    this.#note({ f: 760, to: 420, dur: 0.09, type: 'triangle', vol: 0.55, at });
-    this.#puff({ f: 2200, to: 900, dur: 0.07, vol: 0.5, at });
+  /**
+   * A meow: up, then down.
+   *
+   * That two-part sweep is the whole trick — a single falling tone reads as a
+   * whine, and a single rising one as a question. A cat's "mrow" does both,
+   * with the vowel opening in the middle, which is what the two overlapping
+   * sweeps below imitate.
+   */
+  meow(at = 0, pitch = 1): void {
+    this.#note({ f: 480 * pitch, to: 760 * pitch, dur: 0.13, type: 'sawtooth', vol: 0.24, at, atk: 0.03 });
+    this.#note({ f: 760 * pitch, to: 420 * pitch, dur: 0.22, type: 'sawtooth', vol: 0.26, at: at + 0.11 });
+    // A breath of noise on the attack, so it is not a pure synth tone.
+    this.#puff({ f: 1500, to: 700, dur: 0.09, vol: 0.16, at });
   }
-  bark(): void {
-    this.yip(0);
-    this.yip(0.13);
-  }
+  /** Two short ones — the "look at me" meow rather than the "feed me" one. */
   chirp(): void {
-    this.#note({ f: 620, to: 900, dur: 0.1, vol: 0.5 });
-    this.#note({ f: 940, to: 1180, dur: 0.13, vol: 0.4, at: 0.09 });
+    this.meow(0, 1.15);
+  }
+  /** Contentment. Low, rough, and repeated, the way a purr actually cycles. */
+  purr(): void {
+    for (let i = 0; i < 7; i++) {
+      this.#puff({ f: 190, to: 150, dur: 0.07, vol: 0.13, at: i * 0.085 });
+      this.#note({ f: 62, dur: 0.07, type: 'sawtooth', vol: 0.1, at: i * 0.085 });
+    }
   }
   celebrate(): void {
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
@@ -135,9 +147,10 @@ class Sfx {
     );
     this.#note({ f: 1568, to: 2093, dur: 0.3, vol: 0.22, at: 0.36 });
   }
+  /** The long, flat, unimpressed meow. */
   whine(): void {
-    this.#note({ f: 480, to: 300, dur: 0.32, vol: 0.4 });
-    this.#note({ f: 392, to: 262, dur: 0.36, vol: 0.28, at: 0.14 });
+    this.#note({ f: 430, to: 300, dur: 0.42, type: 'sawtooth', vol: 0.26, atk: 0.05 });
+    this.#note({ f: 360, to: 250, dur: 0.4, type: 'sawtooth', vol: 0.18, at: 0.16 });
   }
   snore(): void {
     this.#note({ f: 150, to: 96, dur: 0.55, vol: 0.34, atk: 0.16 });
@@ -177,12 +190,12 @@ export const sfx = new Sfx();
 /** Maps a pet state onto the sound it makes on entry. */
 export function soundForState(state: string): (() => void) | null {
   switch (state) {
-    case 'happy': return () => sfx.chirp();
+    case 'happy': return () => sfx.purr();
     case 'celebrating': return () => sfx.celebrate();
     case 'sad': return () => sfx.whine();
     case 'notifying': return () => sfx.ping();
     case 'sleeping': return () => sfx.snore();
-    case 'talking': return () => sfx.bark();
+    case 'talking': return () => sfx.meow();
     default: return null;
   }
 }

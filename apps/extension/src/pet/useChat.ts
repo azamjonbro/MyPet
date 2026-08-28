@@ -10,14 +10,14 @@ export interface ChatEntry {
   corrections?: Correction[];
   xp?: number;
   followUp?: string | null;
-  /** A mission line, not something Mochi said — rendered as a chip. */
-  notice?: 'task' | 'mission';
+  /** A mission or action line, not something Mocha said — rendered as a chip. */
+  notice?: 'task' | 'mission' | 'action' | 'failed';
 }
 
 export type ChatStatus = 'idle' | 'sending' | 'error';
 
 /**
- * Owns one conversation with Mochi over a long-lived port to the service
+ * Owns one conversation with Mocha over a long-lived port to the service
  * worker. The port is opened lazily on first send and torn down on unmount,
  * so a pet that is never opened costs nothing.
  */
@@ -118,6 +118,21 @@ export function useChat(
           break;
         }
 
+        case 'action': {
+          // Mocha says what she did in her own words; this chip is the receipt.
+          setEntries((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: 'pet',
+              text: event.result.message,
+              notice: event.result.ok ? 'action' : 'failed',
+            },
+          ]);
+          if (event.result.ok) sfx.pop();
+          break;
+        }
+
         case 'vocab':
           break;
       }
@@ -133,7 +148,7 @@ export function useChat(
       portRef.current = null;
       if (streamingIdRef.current) {
         streamingIdRef.current = null;
-        setError('Mochi lost the connection. Try again.');
+        setError('Mocha lost the connection. Try again.');
         setStatus('error');
       }
     });

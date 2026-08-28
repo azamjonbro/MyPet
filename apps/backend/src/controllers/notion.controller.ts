@@ -86,5 +86,5 @@ function page(heading: string, body: string): string {
   p{margin:0;color:#6b625a}
   .dog{font-size:2.5rem}
 </style></head>
-<body><div class="card"><div class="dog">🐕</div><h1>${escape(heading)}</h1><p>${escape(body)}</p></div></body></html>`;
+<body><div class="card"><div class="dog">🐈</div><h1>${escape(heading)}</h1><p>${escape(body)}</p></div></body></html>`;
 }

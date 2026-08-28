@@ -139,6 +139,7 @@ describe('GET /progress/weaknesses', () => {
       weakTopics: weak.map((w) => w.topicId), recentMistakes: [], summary: null,
       displayName: 'Aziz',
       studyWords: [],
+      nowLocal: '2026-08-29T09:00',
     });
     expect(prompt).toContain('Past Simple · irregular verbs');
   });

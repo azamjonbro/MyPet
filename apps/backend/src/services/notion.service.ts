@@ -264,7 +264,7 @@ export async function sync(userId: string, targets: NotionTarget[] = [...NOTION_
       for (const row of rows) {
         const pageId = await client.createPage(token, databaseId, {
           Word: title(row.word),
-          // The learner's own note stands in when Mochi has not defined it yet.
+          // The learner's own note stands in when Mocha has not defined it yet.
           Definition: richText(row.definition || row.note),
           Example: richText(row.example),
           Learned: date(row.localDate),

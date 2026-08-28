@@ -14,6 +14,8 @@ const KIND_ICON: Record<MissionTask['kind'], string> = {
   read: '📰',
   listen: '🎧',
   speak: '🗣️',
+  usewords: '⭐',
+  own: '📌',
 };
 
 export function App() {
@@ -114,10 +116,10 @@ export function App() {
     return (
       <div className="wrap">
         <div className="head">
-          <div className="av">🐕</div>
+          <div className="av">🐈</div>
           <div>
             <b>AI English Pet</b>
-            <span>Sign in to meet Mochi</span>
+            <span>Sign in to meet Mocha</span>
           </div>
         </div>
         <form onSubmit={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -161,7 +163,7 @@ export function App() {
   return (
     <div className="wrap">
       <div className="head">
-        <div className="av">🐕</div>
+        <div className="av">🐈</div>
         <div style={{ flex: 1 }}>
           <b>{user.displayName}</b>
           <span>{profile.level} → {profile.targetLevel}</span>

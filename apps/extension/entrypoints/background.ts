@@ -3,6 +3,7 @@ import { api, ApiError, signOut, streamChat } from '../src/services/api.js';
 import { localStore, sessionStore } from '../src/services/storage.js';
 import {
   HOURLY_ALARM,
+  REMINDER_ALARM,
   MISSION_NOTIFICATION,
   STREAK_NOTIFICATION,
   ensureAlarms,
@@ -67,6 +68,58 @@ async function pushPetState(state: PetState): Promise<void> {
  * Everything it needs is re-read from storage, because an MV3 worker that has
  * been asleep since the last alarm has no module state left to trust.
  */
+/**
+ * Reminders whose wall-clock time has arrived.
+ *
+ * Compared as strings in the learner's own timezone — the same comparison the
+ * server made when it accepted the reminder, so "seven" means the same seven
+ * on both sides and no timezone arithmetic happens anywhere.
+ */
+async function dueReminders(): Promise<Awaited<ReturnType<typeof api.reminders>>> {
+  const me = await localStore.getCachedMe<MeResponse>();
+  if (!me) return [];
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: me.user.timezone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const now = `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+
+  const all = await api.reminders().catch(() => []);
+  return all.filter((reminder) => reminder.dueAtLocal <= now);
+}
+
+/** Fires anything due, once, and tells the pet to react. */
+async function deliverReminders(): Promise<void> {
+  const due = await dueReminders();
+  if (due.length === 0) return;
+
+  for (const reminder of due.slice(0, 3)) {
+    try {
+      await chrome.notifications.create(`reminder-${reminder.id}`, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icon/128.png'),
+        title: 'Mocha remembered',
+        message: reminder.title,
+        priority: 2,
+      });
+    } catch {
+      /* a refused notification still counts as delivered — see below */
+    }
+    // Marked delivered either way: a reminder that cannot be shown must not
+    // come back every five minutes for the rest of the day.
+    await api.reminderDelivered(reminder.id).catch(() => {});
+  }
+
+  await pushPetState('notifying');
+}
+
 async function hourlyBeat(): Promise<void> {
   const outcome = await runChecks();
 
@@ -184,6 +237,51 @@ async function handle(req: Request): Promise<Response> {
       return { ok: true, enabled: await syncRegistration() };
     }
 
+    case 'MISSION_TASK_ADD': {
+      const mission = await api.addTask(req.task);
+      await broadcast({ type: 'MISSION_CHANGED', remaining: mission.mission.tasks.filter((t) => !t.done).length });
+      return { ok: true, mission };
+    }
+
+    case 'MISSION_TASK_REMOVE': {
+      const mission = await api.removeTask(req.taskId);
+      await broadcast({ type: 'MISSION_CHANGED', remaining: mission.mission.tasks.filter((t) => !t.done).length });
+      return { ok: true, mission };
+    }
+
+    case 'WORDS_GET':
+      return { ok: true, words: await api.words() };
+
+    case 'WORDS_ADD':
+      return { ok: true, words: await api.addWords(req.input) };
+
+    case 'WORD_UPDATE':
+      await api.updateWord(req.wordId, req.patch);
+      return { ok: true, words: await api.words() };
+
+    case 'WORD_REMOVE':
+      await api.removeWord(req.wordId);
+      return { ok: true, words: await api.words() };
+
+    case 'STUDY_GET':
+      return { ok: true, study: await api.activeStudy() };
+
+    case 'STUDY_START': {
+      const study = await api.startStudy(req.subject, req.plannedMinutes);
+      await pushPetState('happy');
+      return { ok: true, study };
+    }
+
+    case 'STUDY_END': {
+      const { session, xpAwarded } = await api.endStudy();
+      await broadcast({ type: 'MISSION_CHANGED', remaining: null });
+      if (xpAwarded > 0) await pushPetState('celebrating');
+      return { ok: true, study: session, xpAwarded };
+    }
+
+    case 'REMINDERS_DUE':
+      return { ok: true, reminders: await dueReminders() };
+
     case 'PET_EVENT':
       // The pet drives its own state machine locally; the worker only pushes
       // the reactions it alone knows about, like a mission falling due.
@@ -220,14 +318,23 @@ export default defineBackground(() => {
   });
 
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name !== HOURLY_ALARM) return;
-    void hourlyBeat().catch(() => {
-      /* the next hour will try again */
-    });
+    if (alarm.name === HOURLY_ALARM) {
+      void hourlyBeat().catch(() => {
+        /* the next hour will try again */
+      });
+      return;
+    }
+    if (alarm.name === REMINDER_ALARM) {
+      void deliverReminders().catch(() => {
+        /* likewise in five minutes */
+      });
+    }
   });
 
   chrome.notifications.onClicked.addListener((id) => {
-    if (id !== MISSION_NOTIFICATION && id !== STREAK_NOTIFICATION) return;
+    if (id !== MISSION_NOTIFICATION && id !== STREAK_NOTIFICATION && !id.startsWith('reminder-')) {
+      return;
+    }
     chrome.notifications.clear(id);
     void openDashboard();
   });
@@ -286,7 +393,7 @@ export default defineBackground(() => {
         post({
           type: 'error',
           code: e?.code ?? 'INTERNAL',
-          message: e?.message ?? 'Mochi could not answer. Try again.',
+          message: e?.message ?? 'Mocha could not answer. Try again.',
         });
       });
     });

@@ -18,6 +18,22 @@ export function localDate(timezone: string, at: Date = new Date()): string {
   return parts; // en-CA formats as YYYY-MM-DD
 }
 
+/**
+ * The plain calendar date where the learner is, with no 04:00 shift.
+ *
+ * Reminders and clocks must use this rather than `localDate`: somebody setting
+ * an alarm for 01:30 means half past one tonight, not "yesterday" — the
+ * study-day boundary is an accounting rule and has no business in a clock.
+ */
+export function calendarDate(timezone: string, at: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
 export function daysBetween(fromLocalDate: string, toLocalDate: string): number {
   const a = Date.parse(`${fromLocalDate}T00:00:00Z`);
   const b = Date.parse(`${toLocalDate}T00:00:00Z`);

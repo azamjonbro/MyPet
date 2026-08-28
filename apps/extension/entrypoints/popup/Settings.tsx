@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { MeResponse, UpdateSettingsRequest } from '@pet/shared';
+import { NAG_LEVELS, type MeResponse, type NagLevel, type UpdateSettingsRequest } from '@pet/shared';
 import { EVERYWHERE_ORIGINS } from '../../src/services/hostAccess.js';
 import { send, type SessionState } from '../../src/types/messages.js';
 
@@ -133,7 +133,7 @@ export function Settings({
             onChange={(e) => void patch({ petEnabled: e.target.checked })}
           />
           <span>
-            <b>Show Mochi on pages</b>
+            <b>Show Mocha on pages</b>
             <small>Chat still works from the dashboard.</small>
           </span>
         </label>
@@ -147,7 +147,7 @@ export function Settings({
           />
           <span>
             <b>Follow me everywhere</b>
-            <small>Off: Mochi only appears on Google.</small>
+            <small>Off: Mocha only appears on Google.</small>
           </span>
         </label>
 
@@ -160,9 +160,111 @@ export function Settings({
           />
           <span>
             <b>Say hello on a new page</b>
-            <small>A small bubble when Mochi arrives.</small>
+            <small>A small bubble when Mocha arrives.</small>
           </span>
         </label>
+      </div>
+
+      <div className="card">
+        <h2>Accountability</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.accountability.enabled}
+            disabled={busy}
+            onChange={(e) => void patch({ accountability: { enabled: e.target.checked } })}
+          />
+          <span>
+            <b>Keep me honest</b>
+            <small>Mocha notices when the day goes by with no English in it.</small>
+          </span>
+        </label>
+
+        <div className="field" style={{ display: 'block' }}>
+          <span style={{ display: 'block', marginBottom: 6 }}>How hard to push</span>
+          <div className="chips">
+            {NAG_LEVELS.map((level) => (
+              <button
+                type="button"
+                key={level}
+                className={`chip${settings.accountability.intensity === level ? ' on' : ''}`}
+                disabled={busy || !settings.accountability.enabled}
+                onClick={() => void patch({ accountability: { intensity: level as NagLevel } })}
+              >
+                {level === 'LOW' ? 'Gentle' : level === 'NORMAL' ? 'Normal' : 'Relentless'}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            {settings.accountability.intensity === 'LOW'
+              ? 'One nudge a day, no streak warnings.'
+              : settings.accountability.intensity === 'NORMAL'
+                ? 'Up to two nudges a day.'
+                : 'Up to three, and Mocha asks again later in the evening.'}
+          </p>
+        </div>
+
+        <label className="field">
+          <span>A day counts if I do</span>
+          <select
+            value={settings.accountability.minMinutes}
+            disabled={busy || !settings.accountability.enabled}
+            onChange={(e) =>
+              void patch({ accountability: { minMinutes: Number(e.target.value) } })
+            }
+          >
+            {[10, 15, 20, 30, 45, 60].map((minutes) => (
+              <option key={minutes} value={minutes}>{minutes} minutes</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.accountability.emailEnabled}
+            disabled={busy || !settings.accountability.enabled}
+            onChange={(e) => void patch({ accountability: { emailEnabled: e.target.checked } })}
+          />
+          <span>
+            <b>Email me if I skip the whole day</b>
+            <small>One email, after your cut-off hour. Never twice for the same day.</small>
+          </span>
+        </label>
+
+        {settings.accountability.emailEnabled ? (
+          <>
+            <label className="field">
+              <span>Send to</span>
+              <input
+                type="email"
+                defaultValue={settings.accountability.email}
+                placeholder="you@example.com"
+                disabled={busy}
+                onBlur={(e) => {
+                  const email = e.target.value.trim();
+                  if (email !== settings.accountability.email) {
+                    void patch({ accountability: { email } });
+                  }
+                }}
+              />
+            </label>
+            <label className="field">
+              <span>After</span>
+              <select
+                value={settings.accountability.cutoffHour}
+                disabled={busy}
+                onChange={(e) =>
+                  void patch({ accountability: { cutoffHour: Number(e.target.value) } })
+                }
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 12).map((hour) => (
+                  <option key={hour} value={hour}>{String(hour).padStart(2, '0')}:00</option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : null}
       </div>
 
       <div className="card">

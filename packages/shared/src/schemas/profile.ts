@@ -64,6 +64,31 @@ export const onboardingRequestSchema = z.object({
 });
 export type OnboardingRequest = z.infer<typeof onboardingRequestSchema>;
 
+/**
+ * How hard Mocha pushes.
+ *
+ * A setting rather than a constant because the right answer differs per person
+ * and per week — and because a learner who cannot turn the nagging down turns
+ * the whole app off instead.
+ */
+export const NAG_LEVELS = ['LOW', 'NORMAL', 'AGGRESSIVE'] as const;
+export type NagLevel = (typeof NAG_LEVELS)[number];
+
+/** Nudges per day at each level, including the mission reminder. */
+export const NAGS_PER_DAY: Record<NagLevel, number> = { LOW: 1, NORMAL: 2, AGGRESSIVE: 4 };
+
+export const accountabilitySchema = z.object({
+  enabled: z.boolean(),
+  intensity: z.enum(NAG_LEVELS),
+  /** Minutes of real study below which the day counts as missed. */
+  minMinutes: z.number().int().min(5).max(240),
+  /** Local hour after which a missed day is final. */
+  cutoffHour: z.number().int().min(12).max(23),
+  emailEnabled: z.boolean(),
+  email: z.string().email().or(z.literal('')),
+});
+export type AccountabilitySettings = z.infer<typeof accountabilitySchema>;
+
 export const userSettingsSchema = z.object({
   petEnabled: z.boolean(),
   petSkin: z.string(),
@@ -75,6 +100,7 @@ export const userSettingsSchema = z.object({
     quietMode: z.boolean(),
   }),
   blockedHosts: z.array(z.string()).max(500),
+  accountability: accountabilitySchema,
 });
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 
@@ -82,7 +108,10 @@ export type UserSettings = z.infer<typeof userSettingsSchema>;
  *  settings screen sends the one switch that moved, not the whole object. */
 export const updateSettingsSchema = userSettingsSchema
   .partial()
-  .extend({ notifications: userSettingsSchema.shape.notifications.partial().optional() })
+  .extend({
+    notifications: userSettingsSchema.shape.notifications.partial().optional(),
+    accountability: userSettingsSchema.shape.accountability.partial().optional(),
+  })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsSchema>;
 

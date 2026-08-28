@@ -33,7 +33,7 @@ export function ChatPanel({
     <div
       className="chat"
       role="dialog"
-      aria-label="Chat with Mochi"
+      aria-label="Chat with Mocha"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -42,8 +42,8 @@ export function ChatPanel({
       }}
     >
       <header className="chat-head">
-        <span className="chat-av" aria-hidden="true">🐕</span>
-        <b>Mochi</b>
+        <span className="chat-av" aria-hidden="true">🐈</span>
+        <b>Mocha</b>
         <button
           type="button"
           className="icon"
@@ -130,7 +130,7 @@ export function ChatPanel({
 
 function Dots() {
   return (
-    <span className="dots" aria-label="Mochi is thinking">
+    <span className="dots" aria-label="Mocha is thinking">
       <i /><i /><i />
     </span>
   );

@@ -62,6 +62,8 @@
 .cream { fill: var(--cream); }
 .coal { fill: var(--coal); }
 .blush { fill: var(--blush); opacity: 0.55; }
+/* The inside of an ear is the same pink, but solid — it is not a cheek. */
+.blush-solid { fill: var(--blush); opacity: 0.9; }
 .pet-shadow { fill: var(--coal); opacity: 0.13; }
 
 .g-body, .g-head, .g-tail, .g-earL, .g-earR, .g-eyes, .g-all, .g-legF, .g-legB {
@@ -70,8 +72,8 @@
 }
 .g-tail { transform-origin: 8% 88%; }
 .g-head { transform-origin: 50% 92%; }
-.g-earL { transform-origin: 70% 95%; }
-.g-earR { transform-origin: 30% 95%; }
+.g-earL { transform-origin: 72% 96%; }
+.g-earR { transform-origin: 28% 96%; }
 .g-all  { transform-origin: 50% 96%; }
 
 /* Only transform and opacity are animated — GPU-composited, so the host
@@ -268,7 +270,7 @@
   .chat { right: 0; bottom: 160px; }
 }
 
-/* A mission line: not something Mochi said, so it is not a speech bubble. */
+/* A mission line: not something Mocha said, so it is not a speech bubble. */
 .notice {
   align-self: center;
   font-size: 11.5px;
@@ -279,6 +281,14 @@
   padding: 4px 12px;
   margin: 2px 0;
   text-align: center;
+}
+.notice.action {
+  color: var(--coal);
+  background: rgba(120, 170, 120, 0.22);
+}
+.notice.failed {
+  color: var(--coal);
+  background: rgba(200, 110, 90, 0.2);
 }
 .notice.mission {
   color: var(--coal);

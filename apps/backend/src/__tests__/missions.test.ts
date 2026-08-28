@@ -90,7 +90,7 @@ describe('mission progress', () => {
   it('advances the chat task from real turns, not from asking', async () => {
     const t = await token();
     await today(t);
-    await say(t, 'Hello Mochi.');
+    await say(t, 'Hello Mocha.');
     await say(t, 'I like reading books.');
 
     const { body } = await today(t);

@@ -43,7 +43,7 @@ Then in Chrome: **chrome://extensions → Developer mode → Load unpacked →
 
 Open the popup, enter any email, and press **Start learning**. Answer the three
 onboarding questions — that is what starts the 90-day clock and plans your first
-mission. Visit `https://www.google.com` and Mochi appears in the corner.
+mission. Visit `https://www.google.com` and Mocha appears in the corner.
 
 > Port 4100, not 4000 — 4000 is already taken on this machine by another project.
 
@@ -62,7 +62,7 @@ switches on as soon as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
 | `pnpm dev` | Backend and extension together |
 | `pnpm dev:backend` | Backend only, watch mode |
 | `pnpm dev:extension` | Extension only, with content-script HMR |
-| `pnpm test` | All tests (127 today) |
+| `pnpm test` | All tests (158 today) |
 | `pnpm typecheck` | Strict TypeScript across all three packages |
 | `pnpm build` | Production build of everything |
 | `pnpm db:up` / `db:down` | Local MongoDB in Docker |
@@ -82,12 +82,34 @@ Memory is assembled fresh each turn under a 1800-token ceiling from four tiers:
 the learner profile, the last 8 turns, a rolling summary, and the ranked
 weakness ledger.
 
+**Mocha herself** — a cat with a character rather than an assistant with a
+name: playful, occasionally lazy, teasing when the learner disappears for days.
+The personality lives in the system prompt next to the CEFR voice rules, so
+tuning it is a data edit rather than a rewrite.
+
+**Doing things by asking** — "remind me to check the SEO at 7pm", "add task:
+fix the navbar", "add words: commute, errand". The model never executes
+anything: it returns one validated `action` object, and the server decides
+whether to carry it out, against that learner's own state. The worst a prompt
+injection on a web page can achieve is a badly-worded task in one learner's own
+day. With no API key a small rule-based detector covers the unambiguous
+phrasings, so the feature still works on a fresh clone.
+
+**Study sessions** — started by hand, never inferred. The app does not watch
+which pages are open or treat "the computer is on" as studying; minutes count
+because somebody pressed start, which is also what makes them worth counting.
+
+**Accountability** — a nudge policy with three intensities, quiet hours and a
+hard ceiling of a few notifications a day, plus an optional end-of-day email
+when a learner who showed up did nothing. Sent once per day per learner,
+enforced by a unique index rather than by hoping the scheduler behaves.
+
 **Missions** — one mission per learner per local day, generated the first time
 that day is opened rather than by a nightly job that would have to guess
 everybody's timezone. The planner — the model, or a deterministic template when
 there is no key — chooses only *what* to practise; ids, targets and XP are
 assigned by the server afterwards, so a bad generation can suggest a dull task
-but can never mint a reward. Tasks the server can see (chat with Mochi, collect
+but can never mint a reward. Tasks the server can see (chat with Mocha, collect
 words, stop making one specific mistake) advance from its own event stream and
 cannot be ticked off by asking; only the ones nobody else can witness — writing
 something, reading for ten minutes, saying a sentence out loud — have a Done
@@ -125,7 +147,7 @@ each answer changes what happens on the very next turn; a settings screen for
 reminders, the pet and muted sites; a service worker that owns all tokens and all network calls; a
 content script that mounts the pet into an open shadow root so neither side's CSS
 can reach the other; the pet with eight animated states driven by the shared
-state machine; a chat panel that streams Mochi's reply token by token over a
+state machine; a chat panel that streams Mocha's reply token by token over a
 long-lived port; synthesised sound (no audio files — it is all Web Audio);
 drag with per-site position memory; a popup and a side-panel dashboard, both
 with real loading, error, empty and signed-out states. Today's mission appears

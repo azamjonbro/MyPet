@@ -1,4 +1,4 @@
-import type { MeResponse } from '@pet/shared';
+import type { MeResponse, NagLevel } from '@pet/shared';
 import { api } from './api.js';
 import { localStore } from './storage.js';
 
@@ -12,6 +12,12 @@ import { localStore } from './storage.js';
  * alive rather than politeness.
  */
 export const HOURLY_ALARM = 'pet-hourly';
+/**
+ * Reminders need a finer beat than the nudges do — "remind me at seven" is
+ * useless at half past. Five minutes is Chrome's practical floor for an alarm
+ * that survives the worker being terminated.
+ */
+export const REMINDER_ALARM = 'pet-reminders';
 
 export const MISSION_NOTIFICATION = 'mission-due';
 export const STREAK_NOTIFICATION = 'streak-at-risk';
@@ -26,7 +32,9 @@ export interface ReminderInput {
   hour: number;
   date: string;
   settings: MeResponse['user']['settings']['notifications'];
-  log: { missionDate: string | null; streakDate: string | null };
+  /** How hard the learner asked to be pushed. */
+  intensity: NagLevel;
+  log: { missionDate: string | null; missionCount: number; streakDate: string | null };
 }
 
 /**
@@ -35,17 +43,25 @@ export interface ReminderInput {
  * once-a-day rule are the product decision here, not the chrome.* plumbing.
  */
 export function dueReminders(input: ReminderInput): { mission: boolean; streak: boolean } {
-  const { hour, date, settings, log } = input;
+  const { hour, date, settings, intensity, log } = input;
   if (settings.quietMode) return { mission: false, streak: false };
   if (hour >= NIGHT_CUTOFF_HOUR || hour < MORNING_HOUR) return { mission: false, streak: false };
+
+  // AGGRESSIVE keeps asking for longer and is allowed to ask twice; LOW gets
+  // one nudge a day and never the streak warning. The ceiling in every case
+  // is small, because the alternative to a muted app is not a nagged learner.
+  const windowHours = intensity === 'AGGRESSIVE' ? 6 : REMINDER_WINDOW_HOURS;
+  const missionAllowance = intensity === 'AGGRESSIVE' ? 2 : 1;
+  const sentToday = log.missionDate === date ? log.missionCount : 0;
 
   return {
     mission:
       settings.missionReminder &&
       hour >= settings.reminderHour &&
-      hour < settings.reminderHour + REMINDER_WINDOW_HOURS &&
-      log.missionDate !== date,
-    streak: settings.streakAtRisk && hour >= STREAK_HOUR && log.streakDate !== date,
+      hour < settings.reminderHour + windowHours &&
+      sentToday < missionAllowance,
+    streak:
+      intensity !== 'LOW' && settings.streakAtRisk && hour >= STREAK_HOUR && log.streakDate !== date,
   };
 }
 
@@ -54,6 +70,7 @@ export function ensureAlarms(): void {
   // worker for an alarm, and asking for a tighter period than a minute is
   // silently ignored by Chrome anyway.
   chrome.alarms.create(HOURLY_ALARM, { periodInMinutes: 60, delayInMinutes: 1 });
+  chrome.alarms.create(REMINDER_ALARM, { periodInMinutes: 5, delayInMinutes: 1 });
 }
 
 /** The learner's own clock, which is the only one that matters here. */
@@ -111,7 +128,15 @@ export async function runChecks(): Promise<CheckOutcome> {
   const settings = me.user.settings.notifications;
   const { hour, date } = localNow(me.user.timezone);
   const log = await localStore.getNotifyLog();
-  const due = dueReminders({ hour, date, settings, log });
+  const due = dueReminders({
+    hour,
+    date,
+    settings,
+    intensity: me.user.settings.accountability.enabled
+      ? (me.user.settings.accountability.intensity as NagLevel)
+      : 'LOW',
+    log,
+  });
   if (!due.mission && !due.streak) return outcome;
 
   if (due.mission) {
@@ -124,9 +149,10 @@ export async function runChecks(): Promise<CheckOutcome> {
           MISSION_NOTIFICATION,
           `Today: ${mission.title}`,
           remaining === 1
-            ? 'One task left. Mochi is waiting.'
+            ? 'One task left. Mocha is waiting.'
             : `${remaining} small tasks. It takes a few minutes.`,
         );
+        log.missionCount = log.missionDate === date ? log.missionCount + 1 : 1;
         log.missionDate = date;
       }
     } catch {
@@ -142,7 +168,7 @@ export async function runChecks(): Promise<CheckOutcome> {
         await notify(
           STREAK_NOTIFICATION,
           `${summary.streak.current}-day streak`,
-          'One message to Mochi keeps it alive.',
+          'One message to Mocha keeps it alive.',
         );
         log.streakDate = date;
       }

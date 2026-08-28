@@ -43,6 +43,14 @@ export function toMeResponse(user: UserDoc, profile: ProfileDoc): MeResponse {
           quietMode: user.settings.notifications.quietMode,
         },
         blockedHosts: [...user.settings.blockedHosts],
+        accountability: {
+          enabled: user.settings.accountability.enabled,
+          intensity: user.settings.accountability.intensity as 'LOW' | 'NORMAL' | 'AGGRESSIVE',
+          minMinutes: user.settings.accountability.minMinutes,
+          cutoffHour: user.settings.accountability.cutoffHour,
+          emailEnabled: user.settings.accountability.emailEnabled,
+          email: user.settings.accountability.email,
+        },
       },
     },
     profile: {
@@ -131,6 +139,9 @@ export async function updateSettings(
   }
   if (patch.notifications) {
     Object.assign(user.settings.notifications, patch.notifications);
+  }
+  if (patch.accountability) {
+    Object.assign(user.settings.accountability, patch.accountability);
   }
 
   await user.save();

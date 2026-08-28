@@ -1,4 +1,5 @@
 import type {
+  AddWordsRequest,
   AuthTokens,
   ChatStreamEvent,
   CompleteTaskResponse,
@@ -8,8 +9,14 @@ import type {
   NotionStatus,
   NotionSyncResult,
   NotionTarget,
+  CustomTaskRequest,
+  MissionResponse as MissionResponseType,
   OnboardingRequest,
   ProgressSummary,
+  Reminder,
+  StudySession,
+  UpdateWordRequest,
+  WordListResponse,
   UpdateSettingsRequest,
   Weakness,
 } from '@pet/shared';
@@ -149,6 +156,67 @@ export const api = {
     }) as Promise<CompleteTaskResponse>;
   },
 
+  addTask(task: CustomTaskRequest): Promise<MissionResponseType> {
+    return authed('/missions/today/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    }) as Promise<MissionResponseType>;
+  },
+
+  removeTask(taskId: string): Promise<MissionResponseType> {
+    return authed(`/missions/today/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'DELETE',
+    }) as Promise<MissionResponseType>;
+  },
+
+  words(): Promise<WordListResponse> {
+    return authed('/vocab') as Promise<WordListResponse>;
+  },
+
+  addWords(input: AddWordsRequest): Promise<WordListResponse> {
+    return authed('/vocab', { method: 'POST', body: JSON.stringify(input) }) as Promise<WordListResponse>;
+  },
+
+  async updateWord(wordId: string, patch: UpdateWordRequest): Promise<void> {
+    await authed(`/vocab/${encodeURIComponent(wordId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  async removeWord(wordId: string): Promise<void> {
+    await authed(`/vocab/${encodeURIComponent(wordId)}`, { method: 'DELETE' });
+  },
+
+  async activeStudy(): Promise<StudySession | null> {
+    const res = (await authed('/study/session')) as { session: StudySession | null };
+    return res.session;
+  },
+
+  async startStudy(subject: string, plannedMinutes: number): Promise<StudySession> {
+    const res = (await authed('/study/session', {
+      method: 'POST',
+      body: JSON.stringify({ subject, plannedMinutes }),
+    })) as { session: StudySession };
+    return res.session;
+  },
+
+  endStudy(): Promise<{ session: StudySession; xpAwarded: number }> {
+    return authed('/study/session/end', { method: 'POST' }) as Promise<{
+      session: StudySession;
+      xpAwarded: number;
+    }>;
+  },
+
+  async reminders(): Promise<Reminder[]> {
+    const res = (await authed('/study/reminders')) as { reminders: Reminder[] };
+    return res.reminders;
+  },
+
+  async reminderDelivered(id: string): Promise<void> {
+    await authed(`/study/reminders/${encodeURIComponent(id)}/delivered`, { method: 'POST' });
+  },
+
   notionStatus(): Promise<NotionStatus> {
     return authed('/notion/status') as Promise<NotionStatus>;
   },
@@ -213,7 +281,7 @@ export async function streamChat(
       | null;
     throw new ApiError(
       parsed?.error?.code ?? 'INTERNAL',
-      parsed?.error?.message ?? 'Mochi could not answer.',
+      parsed?.error?.message ?? 'Mocha could not answer.',
       res.status,
     );
   }

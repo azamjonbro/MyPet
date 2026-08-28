@@ -41,7 +41,7 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
  *
  * Targets are assigned here rather than by the planner, for the same reason XP
  * is: the model proposes what to practise, the server decides what finishing
- * means. Otherwise "chat with Mochi 40 times" is one bad generation away.
+ * means. Otherwise "chat with Mocha 40 times" is one bad generation away.
  */
 function targetFor(kind: TaskKind, level: CefrLevel, dailyGoalMinutes: number): number {
   switch (kind) {
@@ -191,7 +191,7 @@ export async function todayMission(userId: string): Promise<MissionDoc> {
       kind: 'usewords',
       skill: 'vocabulary',
       title: 'Use your own words',
-      detail: `Use these in a message to Mochi: ${ownWords.join(', ')}.`,
+      detail: `Use these in a message to Mocha: ${ownWords.join(', ')}.`,
       topicId: null,
       words: ownWords,
       usedWords: [],
@@ -394,7 +394,7 @@ export async function completeTask(
   const task = mission.tasks.find((t) => t.id === taskId);
   if (!task) throw AppError.notFound('That task is not part of today.');
   if (isServerVerified(task.kind as TaskKind)) {
-    throw AppError.forbidden('Mochi ticks this one off for you — keep practising.');
+    throw AppError.forbidden('Mocha ticks this one off for you — keep practising.');
   }
   if (task.done) return { mission, progress: NO_PROGRESS };
 

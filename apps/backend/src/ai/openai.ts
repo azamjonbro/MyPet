@@ -38,7 +38,7 @@ export function createOpenAIProvider(): LLMProvider {
           },
         });
       } catch {
-        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mochi cannot think right now. Try again in a moment.');
+        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mocha cannot think right now. Try again in a moment.');
       }
 
       let inputTokens = 0;
@@ -60,12 +60,12 @@ export function createOpenAIProvider(): LLMProvider {
       try {
         parsedJson = JSON.parse(raw);
       } catch {
-        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mochi got confused. Try saying that again.');
+        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mocha got confused. Try saying that again.');
       }
 
       const parsed = tutorReplySchema.safeParse(parsedJson);
       if (!parsed.success) {
-        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mochi got confused. Try saying that again.');
+        throw new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mocha got confused. Try saying that again.');
       }
 
       return { reply: parsed.data, usage: { inputTokens, outputTokens } };

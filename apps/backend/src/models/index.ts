@@ -9,3 +9,6 @@ export { DailyStat, type DailyStatDoc } from './DailyStat.js';
 export { Mission, type MissionDoc } from './Mission.js';
 export { VocabItem, type VocabItemDoc } from './VocabItem.js';
 export { NotionConnection, type NotionConnectionDoc } from './NotionConnection.js';
+export { Reminder, type ReminderDoc } from './Reminder.js';
+export { StudySession, type StudySessionDoc } from './StudySession.js';
+export { EmailLog, type EmailLogDoc } from './EmailLog.js';

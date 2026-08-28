@@ -1,5 +1,6 @@
 import {
   TOPIC_LABEL,
+  type AiAction,
   type Correction,
   type GrammarTopic,
   type MissionPlan,
@@ -219,7 +220,7 @@ const THEMES: Theme[] = [
   {
     title: 'Your day',
     focus: 'Talk about ordinary things in the past and the present.',
-    chat: 'Tell Mochi three things you did today. Use full sentences.',
+    chat: 'Tell Mocha three things you did today. Use full sentences.',
     write: 'Write four sentences about your morning.',
     read: 'Read one short news story in English for five minutes.',
     listen: 'Listen to a short podcast about daily life. Write down two words you hear.',
@@ -228,7 +229,7 @@ const THEMES: Theme[] = [
   {
     title: 'Food and eating',
     focus: 'Words for food, and asking questions about it.',
-    chat: 'Describe your favourite meal to Mochi. Say why you like it.',
+    chat: 'Describe your favourite meal to Mocha. Say why you like it.',
     write: 'Write a short recipe in five steps.',
     read: 'Read a recipe in English and find three new words.',
     listen: 'Watch a two-minute cooking video in English. Listen for the verbs.',
@@ -237,7 +238,7 @@ const THEMES: Theme[] = [
   {
     title: 'People you know',
     focus: 'Describing people, and using adjectives well.',
-    chat: 'Describe a friend to Mochi: how they look, and what they are like.',
+    chat: 'Describe a friend to Mocha: how they look, and what they are like.',
     write: 'Write five sentences about someone in your family.',
     read: 'Read a short profile or interview in English.',
     listen: 'Listen to someone describe their family. Note how they say ages.',
@@ -246,7 +247,7 @@ const THEMES: Theme[] = [
   {
     title: 'Work and study',
     focus: 'Talking about what you do, and what you are working on.',
-    chat: 'Tell Mochi what you are working on this week.',
+    chat: 'Tell Mocha what you are working on this week.',
     write: 'Write a short message asking a colleague for help.',
     read: 'Read one page of something about your field, in English.',
     listen: 'Watch a short talk about work. Listen for how they start sentences.',
@@ -255,7 +256,7 @@ const THEMES: Theme[] = [
   {
     title: 'Plans and the future',
     focus: 'Future forms: going to, will, and the present continuous.',
-    chat: 'Tell Mochi about your plans for the weekend.',
+    chat: 'Tell Mocha about your plans for the weekend.',
     write: 'Write four sentences about next year.',
     read: 'Read about an event you would like to go to.',
     listen: 'Listen to a weather forecast in English. Note the future forms.',
@@ -264,7 +265,7 @@ const THEMES: Theme[] = [
   {
     title: 'Places',
     focus: 'Describing places, and prepositions of place.',
-    chat: 'Describe your city to Mochi. What is good, what is not?',
+    chat: 'Describe your city to Mocha. What is good, what is not?',
     write: 'Write five sentences about a place you love.',
     read: 'Read a short travel article in English.',
     listen: 'Watch a two-minute travel video. Listen for place words: at, in, on.',
@@ -273,7 +274,7 @@ const THEMES: Theme[] = [
   {
     title: 'Stories',
     focus: 'The past simple, and keeping a story in order.',
-    chat: 'Tell Mochi a short story about something that happened to you.',
+    chat: 'Tell Mocha a short story about something that happened to you.',
     write: 'Write a story in six sentences. Begin with "Last year ...".',
     read: 'Read a very short story in English.',
     listen: 'Listen to someone tell a story. Note every past tense verb you catch.',
@@ -282,7 +283,7 @@ const THEMES: Theme[] = [
   {
     title: 'Opinions',
     focus: 'Saying what you think, and giving reasons.',
-    chat: 'Tell Mochi what you think about social media, and why.',
+    chat: 'Tell Mocha what you think about social media, and why.',
     write: 'Write four sentences: two for, two against.',
     read: 'Read one opinion article in English.',
     listen: 'Watch a short interview. Listen for how they disagree politely.',
@@ -296,8 +297,8 @@ export function templatePlan(req: MissionPlanRequest): MissionPlan {
   const weak = req.weakTopics[0];
 
   const tasks: MissionPlan['tasks'] = [
-    { kind: 'chat', skill: 'writing', title: 'Talk to Mochi', detail: theme.chat },
-    { kind: 'vocab', skill: 'vocabulary', title: 'Collect new words', detail: 'Ask Mochi for new words while you chat, and use each one in a sentence.' },
+    { kind: 'chat', skill: 'writing', title: 'Talk to Mocha', detail: theme.chat },
+    { kind: 'vocab', skill: 'vocabulary', title: 'Collect new words', detail: 'Ask Mocha for new words while you chat, and use each one in a sentence.' },
   ];
 
   if (weak) {
@@ -305,7 +306,7 @@ export function templatePlan(req: MissionPlanRequest): MissionPlan {
       kind: 'fix',
       skill: 'grammar',
       title: `Get ${TOPIC_LABEL[weak]} right`,
-      detail: `This is the mistake you make most. Write messages today without it. Ask Mochi if you are unsure.`,
+      detail: `This is the mistake you make most. Write messages today without it. Ask Mocha if you are unsure.`,
     });
   } else {
     tasks.push({ kind: 'read', skill: 'reading', title: 'Read a little', detail: theme.read });
@@ -321,6 +322,78 @@ export function templatePlan(req: MissionPlanRequest): MissionPlan {
   tasks.push({ ...rotation[Math.max(0, req.planDay) % rotation.length]! });
 
   return { title: theme.title, focus: theme.focus, tasks };
+}
+
+
+/**
+ * Rule-based action detection for the offline tutor.
+ *
+ * Narrower than the model's, and deliberately so: it fires only on sentences
+ * that are unambiguous instructions ("remind me at 7", "add task: ..."), and
+ * returns NONE for everything else. A false positive here would write into the
+ * learner's day because they mentioned a time in passing.
+ */
+export function detectAction(text: string, todayLocal: string): AiAction {
+  const none: AiAction = { type: 'NONE', title: null, dueAtLocal: null, minutes: null, words: null };
+  const lower = text.toLowerCase().trim();
+
+  const words = /^(add|save)\s+words?\s*[:\-]\s*(.+)$/i.exec(text);
+  if (words?.[2]) {
+    const list = words[2]
+      .split(/[,;/]| and /i)
+      .map((w) => w.trim())
+      .filter((w) => w.length > 0 && w.length <= 60)
+      .slice(0, 15);
+    if (list.length > 0) return { ...none, type: 'ADD_WORDS', words: list };
+  }
+
+  const task = /^(add|new)\s+task\s*[:\-]?\s*(.+)$/i.exec(text);
+  if (task?.[2]) return { ...none, type: 'CREATE_TASK', title: task[2].trim().slice(0, 90) };
+
+  const remind = /remind me(?:\s+to)?\s+(.+?)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(text);
+  if (remind?.[1] && remind[2]) {
+    const hour = to24Hour(Number(remind[2]), remind[4]);
+    if (hour !== null) {
+      const minute = remind[3] ?? '00';
+      const day = /tomorrow/i.test(lower) ? addOneDay(todayLocal) : todayLocal;
+      return {
+        ...none,
+        type: 'CREATE_REMINDER',
+        title: remind[1].trim().slice(0, 90),
+        dueAtLocal: `${day}T${String(hour).padStart(2, '0')}:${minute}`,
+      };
+    }
+  }
+
+  if (/^(let'?s |we )?(start|begin) (studying|study|the session)|^study time$/i.test(lower)) {
+    const minutes = /(\d{1,3})\s*(min|minute)/i.exec(lower);
+    return {
+      ...none,
+      type: 'START_STUDY',
+      title: 'English',
+      minutes: minutes?.[1] ? Math.min(240, Number(minutes[1])) : null,
+    };
+  }
+
+  if (/^(stop|end|finish)( the)? (study|studying|session)/i.test(lower)) {
+    return { ...none, type: 'END_STUDY' };
+  }
+
+  return none;
+}
+
+function to24Hour(hour: number, suffix: string | undefined): number | null {
+  if (hour < 0 || hour > 24) return null;
+  const meridiem = suffix?.toLowerCase();
+  if (meridiem === 'pm') return hour === 12 ? 12 : hour + 12;
+  if (meridiem === 'am') return hour === 12 ? 0 : hour;
+  // No am/pm: a learner saying "at 7" in a study app means the evening.
+  if (hour >= 1 && hour <= 7) return hour + 12;
+  return hour % 24;
+}
+
+function addOneDay(localDate: string): string {
+  return new Date(Date.parse(`${localDate}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 }
 
 export function createOfflineProvider(): LLMProvider {
@@ -350,6 +423,7 @@ export function createOfflineProvider(): LLMProvider {
         reply: text,
         corrections,
         newVocab,
+        action: detectAction(lastUser, req.todayLocal),
         followUp: followUp ?? (corrections.length === 0 ? null : null),
         signals: { userStruggling: corrections.length >= 2, suggestLevelUp: false },
       };

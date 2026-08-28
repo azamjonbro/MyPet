@@ -20,7 +20,7 @@ const chatLimiter = rateLimit({
   // ipKeyGenerator, which normalises an IPv6 address to its /64 — otherwise a
   // client can hop addresses inside its own subnet and never hit the limit.
   keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? 'anonymous'),
-  message: { error: { code: 'RATE_LIMITED', message: 'Slow down a little — Mochi is still thinking.' } },
+  message: { error: { code: 'RATE_LIMITED', message: 'Slow down a little — Mocha is still thinking.' } },
 });
 
 router.post('/message', ...(isTest ? [] : [chatLimiter]), validate(chatMessageRequestSchema), chat.message);

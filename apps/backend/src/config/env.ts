@@ -2,10 +2,17 @@ import { z } from 'zod';
 
 // Node 22 can read a .env without a dependency. Absent file is fine: in
 // production the environment comes from the platform, not a file.
-try {
-  process.loadEnvFile?.();
-} catch {
-  /* no .env — rely on the real environment */
+//
+// Never under test. The suite sets exactly the environment it wants — most
+// importantly, no OPENAI_API_KEY — and loading the developer's .env over the
+// top of that would silently point the tests at the live API, making them
+// cost money, vary run to run, and fail on a machine with a different .env.
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    process.loadEnvFile?.();
+  } catch {
+    /* no .env — rely on the real environment */
+  }
 }
 
 /**
@@ -43,6 +50,12 @@ const schema = z.object({
   NOTION_CLIENT_SECRET: z.string().optional(),
   NOTION_REDIRECT_URI: z.string().url().optional(),
 
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+
   CORS_ORIGINS: z.string().default(''),
 });
 
@@ -68,6 +81,10 @@ export const googleConfigured = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIEN
 
 /** Notion is optional: with no credentials the extension shows it as unavailable
  *  rather than offering a button that cannot work. */
+/** Email is optional too: with no SMTP the accountability email is skipped,
+ *  and the setting reports itself as unavailable rather than failing nightly. */
+export const emailConfigured = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
+
 export const notionConfigured = Boolean(
   env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET && env.NOTION_REDIRECT_URI,
 );

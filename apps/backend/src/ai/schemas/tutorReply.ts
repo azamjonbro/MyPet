@@ -1,4 +1,4 @@
-import { GRAMMAR_TOPICS } from '@pet/shared';
+import { AI_ACTIONS, GRAMMAR_TOPICS } from '@pet/shared';
 
 /**
  * The JSON Schema handed to the model for strict structured output.
@@ -13,7 +13,7 @@ export const TUTOR_REPLY_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   // `reply` first: the stream extractor depends on it arriving before the rest.
-  required: ['reply', 'corrections', 'newVocab', 'followUp', 'signals'],
+  required: ['reply', 'corrections', 'newVocab', 'followUp', 'signals', 'action'],
   properties: {
     reply: {
       type: 'string',
@@ -60,6 +60,27 @@ export const TUTOR_REPLY_JSON_SCHEMA = {
       properties: {
         userStruggling: { type: 'boolean' },
         suggestLevelUp: { type: 'boolean' },
+      },
+    },
+    action: {
+      type: 'object',
+      additionalProperties: false,
+      description:
+        'Something the learner asked for in passing. Use NONE unless they clearly asked. You are proposing, not doing: the app decides.',
+      required: ['type', 'title', 'dueAtLocal', 'minutes', 'words'],
+      properties: {
+        type: { type: 'string', enum: [...AI_ACTIONS] },
+        title: { type: ['string', 'null'], description: 'Task title, reminder text, or study subject.' },
+        dueAtLocal: {
+          type: ['string', 'null'],
+          description: 'Local wall-clock time the learner meant, as YYYY-MM-DDTHH:mm. Never a UTC timestamp.',
+        },
+        minutes: { type: ['integer', 'null'], description: 'Study length, if they said one.' },
+        words: {
+          type: ['array', 'null'],
+          items: { type: 'string' },
+          description: 'Words to add to their list, if they asked.',
+        },
       },
     },
   },

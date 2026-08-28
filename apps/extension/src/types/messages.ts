@@ -1,6 +1,8 @@
 import type {
+  AddWordsRequest,
   ChatStreamEvent,
   CompleteTaskResponse,
+  CustomTaskRequest,
   HistoryDay,
   MeResponse,
   MissionResponse,
@@ -11,8 +13,12 @@ import type {
   PetEvent,
   PetState,
   ProgressSummary,
+  Reminder,
+  StudySession,
   UpdateSettingsRequest,
+  UpdateWordRequest,
   Weakness,
+  WordListResponse,
 } from '@pet/shared';
 
 /**
@@ -40,7 +46,17 @@ export type Request =
   | { type: 'NOTION_SYNC'; targets?: NotionTarget[] }
   | { type: 'NOTION_DISCONNECT' }
   | { type: 'FOLLOW_EVERYWHERE_GET' }
-  | { type: 'FOLLOW_EVERYWHERE_SET'; enabled: boolean };
+  | { type: 'FOLLOW_EVERYWHERE_SET'; enabled: boolean }
+  | { type: 'MISSION_TASK_ADD'; task: CustomTaskRequest }
+  | { type: 'MISSION_TASK_REMOVE'; taskId: string }
+  | { type: 'WORDS_GET' }
+  | { type: 'WORDS_ADD'; input: AddWordsRequest }
+  | { type: 'WORD_UPDATE'; wordId: string; patch: UpdateWordRequest }
+  | { type: 'WORD_REMOVE'; wordId: string }
+  | { type: 'STUDY_GET' }
+  | { type: 'STUDY_START'; subject: string; plannedMinutes: number }
+  | { type: 'STUDY_END' }
+  | { type: 'REMINDERS_DUE' };
 
 export interface ProgressBundle {
   summary: ProgressSummary;
@@ -63,6 +79,9 @@ export type Response =
   | { ok: true; notion: NotionStatus }
   | { ok: true; sync: NotionSyncResult }
   | { ok: true; enabled: boolean }
+  | { ok: true; words: WordListResponse }
+  | { ok: true; study: StudySession | null; xpAwarded?: number }
+  | { ok: true; reminders: Reminder[] }
   | { ok: true }
   | { ok: false; code: string; message: string };
 

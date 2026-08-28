@@ -82,7 +82,7 @@ describe('POST /chat/message', () => {
   });
 
   it('streams the reply as tokens, not one blob', async () => {
-    const events = await say(await token(), 'Hello Mochi, how are you today?');
+    const events = await say(await token(), 'Hello Mocha, how are you today?');
     const tokens = events.filter((e) => e.type === 'token');
     expect(tokens.length).toBeGreaterThan(1);
     expect(events[0]?.type).toBe('open');

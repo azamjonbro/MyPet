@@ -52,13 +52,25 @@ export const localStore = {
    * flags plus a nightly reset, so a worker that never woke up cannot leave a
    * flag stuck and silence the reminder forever.
    */
-  async getNotifyLog(): Promise<{ missionDate: string | null; streakDate: string | null }> {
+  async getNotifyLog(): Promise<{
+    missionDate: string | null;
+    missionCount: number;
+    streakDate: string | null;
+  }> {
     const stored = (await chrome.storage.local.get(NOTIFY_LOG))[NOTIFY_LOG] as
-      | { missionDate?: string; streakDate?: string }
+      | { missionDate?: string; missionCount?: number; streakDate?: string }
       | undefined;
-    return { missionDate: stored?.missionDate ?? null, streakDate: stored?.streakDate ?? null };
+    return {
+      missionDate: stored?.missionDate ?? null,
+      missionCount: stored?.missionCount ?? 0,
+      streakDate: stored?.streakDate ?? null,
+    };
   },
-  async setNotifyLog(log: { missionDate: string | null; streakDate: string | null }): Promise<void> {
+  async setNotifyLog(log: {
+    missionDate: string | null;
+    missionCount: number;
+    streakDate: string | null;
+  }): Promise<void> {
     await chrome.storage.local.set({ [NOTIFY_LOG]: log });
   },
 

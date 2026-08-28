@@ -10,6 +10,14 @@ export interface TutorRequest {
   messages: ProviderMessage[];
   /** CEFR level, so a provider can adapt sampling if it wants to. */
   level: string;
+  /**
+   * The learner's own calendar date, "YYYY-MM-DD".
+   *
+   * Passed explicitly because "remind me at seven" is dated against the
+   * learner's day, and a provider reaching for the server's UTC date would put
+   * the reminder in yesterday for anybody east of London.
+   */
+  todayLocal: string;
 }
 
 export interface TutorResult {

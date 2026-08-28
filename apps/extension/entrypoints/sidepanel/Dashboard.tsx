@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SKILLS, type MissionResponse, type NotionStatus } from '@pet/shared';
+import { SKILLS, type MissionResponse, type NotionStatus, type WordListResponse } from '@pet/shared';
 import { MissionCard } from './MissionCard.js';
 import { NotionCard } from './NotionCard.js';
+import { StudyCard } from './StudyCard.js';
+import { WordsCard } from './WordsCard.js';
 import { send, type ProgressBundle, type Push } from '../../src/types/messages.js';
 
 type State =
@@ -15,6 +17,7 @@ export function Dashboard() {
   const [mission, setMission] = useState<MissionResponse | null>(null);
   const [missionError, setMissionError] = useState<string | null>(null);
   const [notion, setNotion] = useState<NotionStatus | null>(null);
+  const [words, setWords] = useState<WordListResponse | null>(null);
 
   const loadMission = useCallback(async () => {
     setMissionError(null);
@@ -22,6 +25,11 @@ export function Dashboard() {
     if (res && 'mission' in res) setMission(res.mission);
     else if (res && !res.ok) setMissionError(res.message);
     else setMissionError('Could not load today.');
+  }, []);
+
+  const loadWords = useCallback(async () => {
+    const res = await send({ type: 'WORDS_GET' }).catch(() => null);
+    if (res && 'words' in res) setWords(res.words);
   }, []);
 
   const loadNotion = useCallback(async () => {
@@ -41,8 +49,8 @@ export function Dashboard() {
     else if (res && !res.ok) setState({ kind: 'error', message: res.message });
     else setState({ kind: 'error', message: 'Could not load your progress.' });
 
-    await Promise.all([loadMission(), loadNotion()]);
-  }, [loadMission, loadNotion]);
+    await Promise.all([loadMission(), loadNotion(), loadWords()]);
+  }, [loadMission, loadNotion, loadWords]);
 
   useEffect(() => {
     void load();
@@ -75,7 +83,7 @@ export function Dashboard() {
     return (
       <div className="wrap">
         <div className="empty">
-          <span className="e">🐕</span>
+          <span className="e">🐈</span>
           <p>Sign in to see your progress.</p>
           <small>Open the extension popup to get started.</small>
         </div>
@@ -138,6 +146,13 @@ export function Dashboard() {
         onError={setMissionError}
       />
 
+      <StudyCard
+        onFinished={() => {
+          void load();
+          void loadMission();
+        }}
+      />
+
       <div className="tiles">
         <div className={`tile${summary.streak.atRisk ? ' risk' : ''}`}>
           <b>🔥 {summary.streak.current}</b>
@@ -159,7 +174,7 @@ export function Dashboard() {
         {history.every((d) => d.messages === 0) ? (
           <div className="empty" style={{ padding: '14px 0' }}>
             <p>No practice logged yet.</p>
-            <small>Click Mochi on any page and say hello.</small>
+            <small>Click Mocha on any page and say hello.</small>
           </div>
         ) : (
           <>
@@ -203,6 +218,8 @@ export function Dashboard() {
         ))}
       </div>
 
+      <WordsCard data={words} onChanged={setWords} />
+
       <NotionCard status={notion} onRefresh={() => void loadNotion()} />
 
       <div className="card">
@@ -210,7 +227,7 @@ export function Dashboard() {
         {weaknesses.length === 0 ? (
           <div className="empty" style={{ padding: '14px 0' }}>
             <p>Nothing to fix yet.</p>
-            <small>Mochi will list your weak spots as you practise.</small>
+            <small>Mocha will list your weak spots as you practise.</small>
           </div>
         ) : (
           <div className="weak">

@@ -49,7 +49,7 @@ export async function list(userId: string): Promise<WordListResponse> {
 /**
  * Adds words the learner asked to learn.
  *
- * An existing word is not duplicated and not overwritten: if Mochi already
+ * An existing word is not duplicated and not overwritten: if Mocha already
  * taught it, adding it keeps the definition and only takes the learner's note
  * and their claim on it. Re-adding a word marked "known" puts it back into
  * learning, which is the whole reason somebody would type it again.
@@ -141,7 +141,12 @@ export async function wordsForPrompt(userId: string, limit = WORDS_IN_PROMPT): P
 export function findUsedWords(text: string, words: string[]): string[] {
   const lower = text.toLowerCase();
   const tokens = lower.split(/[^a-z']+/).filter(Boolean);
-  const stems = new Set(tokens.map(stem));
+
+  // Every form each written word could be a form OF. Working outwards from the
+  // text like this — rather than inwards from the word — is what keeps "post"
+  // from counting as "postpone" while "postponed" still does.
+  const seen = new Set<string>();
+  for (const token of tokens) for (const form of baseForms(token)) seen.add(form);
 
   const used: string[] = [];
   for (const word of words) {
@@ -154,24 +159,48 @@ export function findUsedWords(text: string, words: string[]): string[] {
       continue;
     }
 
-    if (stems.has(stem(key))) used.push(word);
+    if (seen.has(key)) used.push(word);
   }
   return used;
 }
 
-function stem(token: string): string {
-  const word = token.replace(/'s$/, '');
-  if (word.length <= 3) return word;
-  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
-  if (word.endsWith('ing') && word.length > 5) return restoreDouble(word.slice(0, -3));
-  if (word.endsWith('ed') && word.length > 4) return restoreDouble(word.slice(0, -2));
-  if (word.endsWith('es') && word.length > 4) return word.slice(0, -2);
-  if (word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
-  return word;
+/** The dictionary forms a written token could have come from. */
+function baseForms(raw: string): string[] {
+  const token = raw.replace(/'s$/, '');
+  const forms = new Set<string>([token]);
+  const add = (form: string) => {
+    if (form.length >= 2) forms.add(form);
+  };
+
+  if (token.endsWith('ied') && token.length > 4) add(`${token.slice(0, -3)}y`);
+  if (token.endsWith('ies') && token.length > 4) add(`${token.slice(0, -3)}y`);
+
+  if (token.endsWith('es') && token.length > 3) {
+    add(token.slice(0, -2)); // boxes -> box
+    add(token.slice(0, -1)); // commutes -> commute
+  } else if (token.endsWith('s') && !token.endsWith('ss') && token.length > 2) {
+    add(token.slice(0, -1));
+  }
+
+  if (token.endsWith('ed') && token.length > 3) {
+    const base = token.slice(0, -2);
+    add(base); // worked -> work
+    add(`${base}e`); // postponed -> postpone
+    add(undouble(base)); // stopped -> stop
+  }
+
+  if (token.endsWith('ing') && token.length > 4) {
+    const base = token.slice(0, -3);
+    add(base); // working -> work
+    add(`${base}e`); // postponing -> postpone
+    add(undouble(base)); // planning -> plan
+  }
+
+  return [...forms];
 }
 
-/** "stopped" -> "stop", "planning" -> "plan". Only for a doubled final consonant. */
-function restoreDouble(base: string): string {
+/** "stopp" -> "stop", "plann" -> "plan". Only a doubled final consonant. */
+function undouble(base: string): string {
   const last = base.at(-1);
   const previous = base.at(-2);
   if (last && previous && last === previous && !'aeiou'.includes(last)) return base.slice(0, -1);

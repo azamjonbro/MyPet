@@ -15,7 +15,7 @@ export async function assertWithinBudget(userId: string, localDate: string): Pro
     throw new AppError(
       429,
       'AI_BUDGET_EXCEEDED',
-      "That's a lot of practice for one day! Mochi needs to rest — come back tomorrow.",
+      "That's a lot of practice for one day! Mocha needs to rest — come back tomorrow.",
     );
   }
 }

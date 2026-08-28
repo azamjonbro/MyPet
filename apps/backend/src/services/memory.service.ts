@@ -3,7 +3,7 @@ import type { GrammarTopic } from '@pet/shared';
 import { Mistake, type ConversationDoc, type ProfileDoc, type UserDoc } from '../models/index.js';
 import { buildSystemPrompt } from '../ai/prompts/system.js';
 import type { ProviderMessage } from '../ai/provider.js';
-import { planDayFor } from '../utils/date.js';
+import { calendarDate, planDayFor } from '../utils/date.js';
 import { wordsForPrompt } from './vocab.service.js';
 
 /**
@@ -22,6 +22,16 @@ export const SUMMARISE_AFTER_TURNS = 16;
 export const MAX_PROMPT_TOKENS = 1800;
 export const TOP_WEAK_TOPICS = 3;
 export const RECENT_MISTAKES = 3;
+
+/** "HH:mm" where the learner is. */
+function clock(timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+}
 
 /** Cheap, provider-agnostic estimate. Good enough to enforce a ceiling. */
 export function estimateTokens(text: string): number {
@@ -80,6 +90,7 @@ export async function assembleContext(
     summary: conversation.summary ?? null,
     displayName: user.displayName,
     studyWords,
+    nowLocal: `${calendarDate(user.timezone)}T${clock(user.timezone)}`,
   });
 
   // Tier 1: the most recent turns, verbatim.

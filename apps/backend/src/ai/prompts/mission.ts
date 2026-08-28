@@ -23,7 +23,7 @@ export function buildMissionPrompt(ctx: MissionPromptContext): string {
   const voice = LEVEL_VOICE[ctx.level];
 
   const lines: string[] = [
-    'You plan one day of English practice for a learner using a browser companion called Mochi.',
+    'You plan one day of English practice for a learner using a browser companion called Mocha.',
     'A day is small: three or four tasks that together fit the learner\'s daily goal. Never more.',
     '',
     '## The learner',
@@ -34,7 +34,7 @@ export function buildMissionPrompt(ctx: MissionPromptContext): string {
     `Write every task title and detail in English simple enough for ${ctx.level}: sentences under ${voice.maxSentenceWords} words.`,
     '',
     '## Task kinds, and what each one means',
-    '- chat: talk to Mochi about something specific. Say what to talk about.',
+    '- chat: talk to Mocha about something specific. Say what to talk about.',
     '- vocab: learn new words while chatting.',
     '- fix: practise one grammar point the learner keeps getting wrong.',
     '- write: write a short text. Give the exact prompt.',

@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * The learner's own word list.
  *
- * Two things live in one list on purpose: words Mochi taught, and words the
+ * Two things live in one list on purpose: words Mocha taught, and words the
  * learner asked to learn. They are the same object to the learner — "words I
  * am working on" — and keeping them apart would mean two lists, two exports
  * and two places to look for the same word.

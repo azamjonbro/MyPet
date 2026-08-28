@@ -11,12 +11,25 @@ const notificationSettings = new Schema(
   { _id: false },
 );
 
+const accountability = new Schema(
+  {
+    enabled: { type: Boolean, default: true },
+    intensity: { type: String, enum: ['LOW', 'NORMAL', 'AGGRESSIVE'], default: 'NORMAL' },
+    minMinutes: { type: Number, default: 15, min: 5, max: 240 },
+    cutoffHour: { type: Number, default: 21, min: 12, max: 23 },
+    emailEnabled: { type: Boolean, default: false },
+    email: { type: String, default: '' },
+  },
+  { _id: false },
+);
+
 const settings = new Schema(
   {
     petEnabled: { type: Boolean, default: true },
     petSkin: { type: String, default: 'mochi' },
     notifications: { type: notificationSettings, default: () => ({}) },
     blockedHosts: { type: [String], default: [] },
+    accountability: { type: accountability, default: () => ({}) },
   },
   { _id: false },
 );

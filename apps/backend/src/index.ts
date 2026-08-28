@@ -3,11 +3,13 @@ import { connectDb } from './config/db.js';
 import { env, devAuthEnabled } from './config/env.js';
 import { logger } from './config/logger.js';
 import { startRollupJob } from './jobs/rollup.job.js';
+import { startAccountabilityJob } from './jobs/accountability.job.js';
 
 async function main(): Promise<void> {
   await connectDb();
 
   const stopRollup = startRollupJob();
+  const stopAccountability = startAccountabilityJob();
   const app = createApp();
   const server = app.listen(env.PORT, () => {
     logger.info(
@@ -19,6 +21,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     logger.info({ signal }, 'shutting down');
     stopRollup();
+    stopAccountability();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(1), 8000).unref();
   };

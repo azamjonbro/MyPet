@@ -21,8 +21,9 @@ import { applyActivity } from './streak.service.js';
 import { record } from './analytics.service.js';
 import { recordChatTurn } from './mission.service.js';
 import { findUsedWords, recordUsage as recordWordUsage, wordsForPrompt } from './vocab.service.js';
+import { execute as executeAction, nowFor } from './action.service.js';
 import { AppError } from '../utils/errors.js';
-import { localDate } from '../utils/date.js';
+import { calendarDate, localDate } from '../utils/date.js';
 import { logger } from '../config/logger.js';
 
 export interface TurnInput {
@@ -75,14 +76,19 @@ export async function runTurn(input: TurnInput): Promise<void> {
   let result: { reply: TutorReply; usage: { inputTokens: number; outputTokens: number } };
   try {
     result = await provider.tutor(
-      { systemPrompt: context.systemPrompt, messages: context.messages, level: profile.level },
+      {
+        systemPrompt: context.systemPrompt,
+        messages: context.messages,
+        level: profile.level,
+        todayLocal: calendarDate(user.timezone),
+      },
       (text) => input.emit({ type: 'token', text }),
     );
   } catch (err) {
     logger.error({ err, provider: provider.name }, 'tutor call failed');
     throw err instanceof AppError
       ? err
-      : new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mochi cannot think right now. Try again in a moment.');
+      : new AppError(502, 'UPSTREAM_UNAVAILABLE', 'Mocha cannot think right now. Try again in a moment.');
   }
 
   await recordUsage(input.userId, today, result.usage);
@@ -125,6 +131,12 @@ export async function runTurn(input: TurnInput): Promise<void> {
   if (wordsLearned > 0) {
     record(user._id, 'vocab.learned', today, wordsLearned);
   }
+
+  // Anything the learner asked for in passing — a reminder, a task, a session.
+  // Executed after their words are safely stored, so a rejected action can
+  // never cost them the turn.
+  const actionResult = await executeAction(input.userId, reply.action, await nowFor(input.userId));
+  if (actionResult) input.emit({ type: 'action', result: actionResult });
 
   // Missions are settled after the profile is saved, on purpose: the mission
   // service adds its XP with an atomic $inc, and a save() here afterwards would
@@ -255,7 +267,7 @@ export async function summariseInBackground(conversationId: string): Promise<voi
   if (toFold.length === 0) return;
 
   const transcript = toFold
-    .map((m) => `${m.role === 'user' ? 'Learner' : 'Mochi'}: ${m.content}`)
+    .map((m) => `${m.role === 'user' ? 'Learner' : 'Mocha'}: ${m.content}`)
     .join('\n');
 
   const previous = conversation.summary ? `${conversation.summary}\n\n` : '';

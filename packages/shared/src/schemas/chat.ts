@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { aiActionSchema } from './action.js';
 import { GRAMMAR_TOPICS } from '../constants/grammarTopics.js';
 import { CEFR_LEVELS } from '../constants/cefr.js';
+import type { ActionResult } from './action.js';
 
 /**
  * The tutor's structured output.
@@ -39,6 +41,11 @@ export const tutorReplySchema = z.object({
     userStruggling: z.boolean(),
     suggestLevelUp: z.boolean(),
   }),
+  /**
+   * Something the learner asked for in passing — "remind me at seven",
+   * "add these words". Proposed here, executed and validated by the server.
+   */
+  action: aiActionSchema,
 });
 export type TutorReply = z.infer<typeof tutorReplySchema>;
 
@@ -73,6 +80,7 @@ export type ChatStreamEvent =
   | { type: 'token'; text: string }
   | { type: 'corrections'; corrections: Correction[] }
   | { type: 'vocab'; items: VocabItem[] }
+  | { type: 'action'; result: ActionResult }
   | {
       type: 'mission';
       completedTasks: { id: string; title: string; xp: number }[];
