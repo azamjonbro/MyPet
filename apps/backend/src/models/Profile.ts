@@ -25,6 +25,7 @@ const profileSchema = new Schema(
 
     /** Null until onboarding finishes. currentDay is derived from it, never stored. */
     planStartDate: { type: String, default: null },
+    onboardedAt: { type: Date, default: null },
 
     xp: { type: Number, default: 0, min: 0 },
 

@@ -1,4 +1,4 @@
-import type { TutorReply } from '@pet/shared';
+import type { CefrLevel, GrammarTopic, MissionPlan, TutorReply } from '@pet/shared';
 
 export interface ProviderMessage {
   role: 'user' | 'assistant';
@@ -17,6 +17,19 @@ export interface TutorResult {
   usage: { inputTokens: number; outputTokens: number };
 }
 
+export interface MissionPlanRequest {
+  systemPrompt: string;
+  level: CefrLevel;
+  planDay: number;
+  dailyGoalMinutes: number;
+  weakTopics: GrammarTopic[];
+}
+
+export interface MissionPlanResult {
+  plan: MissionPlan;
+  usage: { inputTokens: number; outputTokens: number };
+}
+
 /**
  * One interface, so a model or vendor change is a contained change (§C).
  * Today there are two implementations: OpenAI, and a deterministic offline one.
@@ -28,5 +41,7 @@ export interface LLMProvider {
    * resolves with the fully-parsed structured result.
    */
   tutor(req: TutorRequest, onToken: (text: string) => void): Promise<TutorResult>;
+  /** A day's plan. The server assigns ids, targets and XP afterwards. */
+  planMission(req: MissionPlanRequest): Promise<MissionPlanResult>;
   summarise(text: string, instruction: string): Promise<string>;
 }

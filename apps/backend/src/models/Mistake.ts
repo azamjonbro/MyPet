@@ -19,6 +19,7 @@ const mistakeSchema = new Schema(
     severity: { type: String, enum: ['minor', 'major'], default: 'minor' },
     localDate: { type: String, required: true },
     resolved: { type: Boolean, default: false },
+    notionPageId: { type: String, default: null },
   },
   { timestamps: true },
 );

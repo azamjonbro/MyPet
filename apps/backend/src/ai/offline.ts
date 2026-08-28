@@ -1,5 +1,12 @@
-import type { Correction, GrammarTopic, TutorReply } from '@pet/shared';
-import type { LLMProvider, TutorRequest, TutorResult } from './provider.js';
+import {
+  TOPIC_LABEL,
+  type Correction,
+  type GrammarTopic,
+  type MissionPlan,
+  type TutorReply,
+  type VocabItem,
+} from '@pet/shared';
+import type { LLMProvider, MissionPlanRequest, MissionPlanResult, TutorRequest, TutorResult } from './provider.js';
 
 /**
  * A deterministic, offline tutor.
@@ -132,6 +139,27 @@ const PRAISE = [
   'Great, keep going!',
 ];
 
+/**
+ * A small word bank, so the offline tutor teaches vocabulary rather than only
+ * correcting. Without it a mission's `vocab` task is unfinishable on a clone
+ * with no API key — and "the whole thing runs on a fresh checkout" is a
+ * property worth keeping true.
+ */
+const WORD_BANK: VocabItem[] = [
+  { word: 'commute', definition: 'The journey between home and work.', example: 'My commute takes forty minutes.' },
+  { word: 'errand', definition: 'A short trip to do one small job.', example: 'I have two errands this morning.' },
+  { word: 'cosy', definition: 'Small, warm and comfortable.', example: 'Their kitchen is very cosy.' },
+  { word: 'to postpone', definition: 'To move something to a later time.', example: 'We postponed the meeting.' },
+  { word: 'reliable', definition: 'You can trust it to work every time.', example: 'She is a reliable friend.' },
+  { word: 'to look forward to', definition: 'To feel happy about something in the future.', example: 'I look forward to Friday.' },
+  { word: 'crowded', definition: 'Full of people.', example: 'The bus was crowded this morning.' },
+  { word: 'to figure out', definition: 'To understand something after thinking.', example: 'I figured out the problem.' },
+  { word: 'spare time', definition: 'Time when you are not working.', example: 'I read in my spare time.' },
+  { word: 'straightforward', definition: 'Simple and easy to understand.', example: 'The instructions were straightforward.' },
+  { word: 'to get used to', definition: 'To slowly find something normal.', example: 'I got used to the cold.' },
+  { word: 'worth it', definition: 'Good enough for the time or money it costs.', example: 'The long walk was worth it.' },
+];
+
 const FOLLOW_UPS = [
   'Tell me more. Why?',
   'And how did you feel about that?',
@@ -168,6 +196,122 @@ export function analyse(text: string): { corrections: Correction[]; followUp: st
   return { corrections, followUp };
 }
 
+
+/**
+ * The template mission planner.
+ *
+ * Exported on its own because it is two things at once: what the offline
+ * provider returns, and what the mission service falls back to when a
+ * configured model fails. A learner opening the extension on a morning when
+ * OpenAI is down should still get a day's work, not an error card.
+ */
+interface Theme {
+  title: string;
+  focus: string;
+  chat: string;
+  write: string;
+  read: string;
+  speak: string;
+}
+
+const THEMES: Theme[] = [
+  {
+    title: 'Your day',
+    focus: 'Talk about ordinary things in the past and the present.',
+    chat: 'Tell Mochi three things you did today. Use full sentences.',
+    write: 'Write four sentences about your morning.',
+    read: 'Read one short news story in English for five minutes.',
+    speak: 'Say out loud: "Today I woke up at ... and then I ..."',
+  },
+  {
+    title: 'Food and eating',
+    focus: 'Words for food, and asking questions about it.',
+    chat: 'Describe your favourite meal to Mochi. Say why you like it.',
+    write: 'Write a short recipe in five steps.',
+    read: 'Read a recipe in English and find three new words.',
+    speak: 'Order a coffee out loud, the way you would in a cafe.',
+  },
+  {
+    title: 'People you know',
+    focus: 'Describing people, and using adjectives well.',
+    chat: 'Describe a friend to Mochi: how they look, and what they are like.',
+    write: 'Write five sentences about someone in your family.',
+    read: 'Read a short profile or interview in English.',
+    speak: 'Introduce yourself out loud in four sentences.',
+  },
+  {
+    title: 'Work and study',
+    focus: 'Talking about what you do, and what you are working on.',
+    chat: 'Tell Mochi what you are working on this week.',
+    write: 'Write a short message asking a colleague for help.',
+    read: 'Read one page of something about your field, in English.',
+    speak: 'Explain your job out loud in three sentences.',
+  },
+  {
+    title: 'Plans and the future',
+    focus: 'Future forms: going to, will, and the present continuous.',
+    chat: 'Tell Mochi about your plans for the weekend.',
+    write: 'Write four sentences about next year.',
+    read: 'Read about an event you would like to go to.',
+    speak: 'Say three plans out loud, starting with "I am going to ...".',
+  },
+  {
+    title: 'Places',
+    focus: 'Describing places, and prepositions of place.',
+    chat: 'Describe your city to Mochi. What is good, what is not?',
+    write: 'Write five sentences about a place you love.',
+    read: 'Read a short travel article in English.',
+    speak: 'Give directions out loud from your home to the nearest shop.',
+  },
+  {
+    title: 'Stories',
+    focus: 'The past simple, and keeping a story in order.',
+    chat: 'Tell Mochi a short story about something that happened to you.',
+    write: 'Write a story in six sentences. Begin with "Last year ...".',
+    read: 'Read a very short story in English.',
+    speak: 'Tell your story out loud, without reading it.',
+  },
+  {
+    title: 'Opinions',
+    focus: 'Saying what you think, and giving reasons.',
+    chat: 'Tell Mochi what you think about social media, and why.',
+    write: 'Write four sentences: two for, two against.',
+    read: 'Read one opinion article in English.',
+    speak: 'Say your opinion out loud in three sentences.',
+  },
+];
+
+/** Deterministic: the same day always produces the same mission. */
+export function templatePlan(req: MissionPlanRequest): MissionPlan {
+  const theme = THEMES[Math.max(0, req.planDay - 1) % THEMES.length]!;
+  const weak = req.weakTopics[0];
+
+  const tasks: MissionPlan['tasks'] = [
+    { kind: 'chat', skill: 'speaking', title: 'Talk to Mochi', detail: theme.chat },
+    { kind: 'vocab', skill: 'vocabulary', title: 'Collect new words', detail: 'Ask Mochi for new words while you chat, and use each one in a sentence.' },
+  ];
+
+  if (weak) {
+    tasks.push({
+      kind: 'fix',
+      skill: 'grammar',
+      title: `Get ${TOPIC_LABEL[weak]} right`,
+      detail: `This is the mistake you make most. Write messages today without it. Ask Mochi if you are unsure.`,
+    });
+  } else {
+    tasks.push({ kind: 'read', skill: 'reading', title: 'Read a little', detail: theme.read });
+  }
+
+  // Longer goals get one more task; a fifteen-minute learner gets three.
+  tasks.push(
+    req.dailyGoalMinutes >= 30
+      ? { kind: 'write', skill: 'writing', title: 'Write it down', detail: theme.write }
+      : { kind: 'speak', skill: 'speaking', title: 'Say it out loud', detail: theme.speak },
+  );
+
+  return { title: theme.title, focus: theme.focus, tasks };
+}
+
 export function createOfflineProvider(): LLMProvider {
   return {
     name: 'offline',
@@ -187,10 +331,14 @@ export function createOfflineProvider(): LLMProvider {
         await new Promise((r) => setTimeout(r, 12));
       }
 
+      // One word per turn, chosen deterministically from the message so the
+      // same input always teaches the same word.
+      const newVocab = lastUser.trim().length >= 8 ? [pick(WORD_BANK, lastUser)] : [];
+
       const reply: TutorReply = {
         reply: text,
         corrections,
-        newVocab: [],
+        newVocab,
         followUp: followUp ?? (corrections.length === 0 ? null : null),
         signals: { userStruggling: corrections.length >= 2, suggestLevelUp: false },
       };
@@ -202,6 +350,13 @@ export function createOfflineProvider(): LLMProvider {
           inputTokens: Math.ceil(req.systemPrompt.length / 4),
           outputTokens: Math.ceil(text.length / 4),
         },
+      };
+    },
+
+    async planMission(req: MissionPlanRequest): Promise<MissionPlanResult> {
+      return {
+        plan: templatePlan(req),
+        usage: { inputTokens: Math.ceil(req.systemPrompt.length / 4), outputTokens: 120 },
       };
     },
 

@@ -7,7 +7,7 @@ import {
   type GrammarTopic,
   type TutorReply,
 } from '@pet/shared';
-import { Conversation, Mistake, Profile, User } from '../models/index.js';
+import { Conversation, Mistake, Profile, User, VocabItem } from '../models/index.js';
 import { getProvider } from '../ai/index.js';
 import { SUMMARISE_INSTRUCTION } from '../ai/prompts/system.js';
 import { assertWithinBudget, recordUsage } from '../ai/budget.js';
@@ -19,6 +19,7 @@ import {
 import { ensureProfile } from './profile.service.js';
 import { applyActivity } from './streak.service.js';
 import { record } from './analytics.service.js';
+import { recordChatTurn } from './mission.service.js';
 import { AppError } from '../utils/errors.js';
 import { localDate } from '../utils/date.js';
 import { logger } from '../config/logger.js';
@@ -94,8 +95,10 @@ export async function runTurn(input: TurnInput): Promise<void> {
     input.emit({ type: 'corrections', corrections: reply.corrections });
     await persistMistakes(user._id, userMessageId, reply.corrections, today);
   }
+  let wordsLearned = 0;
   if (reply.newVocab.length > 0) {
     input.emit({ type: 'vocab', items: reply.newVocab });
+    wordsLearned = await persistVocab(user._id, petMessageId, reply.newVocab, today);
   }
 
   // Practising is what advances the streak — one turn is enough to have
@@ -112,8 +115,24 @@ export async function runTurn(input: TurnInput): Promise<void> {
   if (reply.corrections.length > 0) {
     record(user._id, 'correction.received', today, reply.corrections.length);
   }
-  if (reply.newVocab.length > 0) {
-    record(user._id, 'vocab.learned', today, reply.newVocab.length);
+  if (wordsLearned > 0) {
+    record(user._id, 'vocab.learned', today, wordsLearned);
+  }
+
+  // Missions are settled after the profile is saved, on purpose: the mission
+  // service adds its XP with an atomic $inc, and a save() here afterwards would
+  // write back the pre-increment value it read.
+  const mission = await recordChatTurn(input.userId, today, {
+    vocabLearned: wordsLearned,
+    correctedTopics: reply.corrections.map((c) => c.topicId as GrammarTopic),
+  });
+  if (mission.completedTasks.length > 0) {
+    input.emit({
+      type: 'mission',
+      completedTasks: mission.completedTasks.map((t) => ({ id: t.id, title: t.title, xp: t.xp })),
+      missionCompleted: mission.missionCompleted,
+      xpAwarded: mission.xpAwarded,
+    });
   }
 
   // Fold older turns into the rolling summary once the window overflows.
@@ -126,8 +145,8 @@ export async function runTurn(input: TurnInput): Promise<void> {
   input.emit({
     type: 'done',
     sessionId,
-    xpAwarded,
-    xpTotal: profile.xp,
+    xpAwarded: xpAwarded + mission.xpAwarded,
+    xpTotal: profile.xp + mission.xpAwarded,
     followUp: reply.followUp,
   });
 }
@@ -170,6 +189,43 @@ async function persistMistakes(
       localDate: today,
     })),
   );
+}
+
+/**
+ * Stores the words the tutor taught, one row per learner per word.
+ *
+ * Returns how many were genuinely new: teaching "commute" for the third time
+ * is not three words learned, and the dashboard would be flattering nonsense
+ * if it were counted that way.
+ */
+async function persistVocab(
+  userId: import('mongoose').Types.ObjectId,
+  messageId: string,
+  items: TutorReply['newVocab'],
+  today: string,
+): Promise<number> {
+  let learned = 0;
+  for (const item of items) {
+    const key = item.word.trim().toLowerCase();
+    if (!key) continue;
+    const res = await VocabItem.updateOne(
+      { userId, key },
+      {
+        $setOnInsert: {
+          userId,
+          key,
+          word: item.word.trim(),
+          definition: item.definition,
+          example: item.example,
+          localDate: today,
+          messageId,
+        },
+      },
+      { upsert: true },
+    ).catch(() => null);
+    if (res?.upsertedCount) learned++;
+  }
+  return learned;
 }
 
 /**

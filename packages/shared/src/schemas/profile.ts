@@ -25,6 +25,8 @@ export const profileSchema = z.object({
   dailyGoalMinutes: z.number().int().min(5).max(240),
   planStartDate: localDateSchema.nullable(),
   currentDay: z.number().int().min(0).max(90),
+  /** Onboarding is what starts the 90-day clock, so the two are reported together. */
+  onboarded: z.boolean(),
   xp: z.number().int().min(0),
   petLevel: z.number().int().min(1),
   petTitle: z.string(),
@@ -45,6 +47,23 @@ export const updateProfileSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 export type UpdateProfileRequest = z.infer<typeof updateProfileSchema>;
 
+/**
+ * Onboarding, submitted once.
+ *
+ * Everything here is a deliberate answer: level and target set the tutor's
+ * voice, the daily goal sets what a mission asks for, and the reminder hour is
+ * the only time we are allowed to interrupt the learner's day.
+ */
+export const onboardingRequestSchema = z.object({
+  level: z.enum(CEFR_LEVELS),
+  targetLevel: z.enum(CEFR_LEVELS),
+  targetExam: z.enum(TARGET_EXAMS).default('NONE'),
+  dailyGoalMinutes: z.number().int().min(5).max(240),
+  timezone: timezoneSchema,
+  reminderHour: z.number().int().min(0).max(23).default(19),
+});
+export type OnboardingRequest = z.infer<typeof onboardingRequestSchema>;
+
 export const userSettingsSchema = z.object({
   petEnabled: z.boolean(),
   petSkin: z.string(),
@@ -59,7 +78,12 @@ export const userSettingsSchema = z.object({
 });
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 
-export const updateSettingsSchema = userSettingsSchema.partial();
+/** Every field optional, including the nested notification toggles — the
+ *  settings screen sends the one switch that moved, not the whole object. */
+export const updateSettingsSchema = userSettingsSchema
+  .partial()
+  .extend({ notifications: userSettingsSchema.shape.notifications.partial().optional() })
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsSchema>;
 
 export const meResponseSchema = z.object({

@@ -1,5 +1,11 @@
 import type { Types } from 'mongoose';
-import { levelFromXp, type MeResponse, type UpdateProfileRequest } from '@pet/shared';
+import {
+  levelFromXp,
+  type MeResponse,
+  type OnboardingRequest,
+  type UpdateProfileRequest,
+  type UpdateSettingsRequest,
+} from '@pet/shared';
 import { Profile, User, type ProfileDoc, type UserDoc } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { localDate, planDayFor } from '../utils/date.js';
@@ -46,6 +52,7 @@ export function toMeResponse(user: UserDoc, profile: ProfileDoc): MeResponse {
       dailyGoalMinutes: profile.dailyGoalMinutes,
       planStartDate,
       currentDay: planDayFor(planStartDate, today),
+      onboarded: profile.onboardedAt !== null && profile.onboardedAt !== undefined,
       xp: profile.xp,
       petLevel: levelInfo.level,
       petTitle: levelInfo.title,
@@ -71,6 +78,62 @@ export async function getMe(userId: string): Promise<MeResponse> {
   const user = await User.findById(userId);
   if (!user) throw AppError.notFound('That account no longer exists.');
   const profile = await ensureProfile(user._id);
+  return toMeResponse(user, profile);
+}
+
+/**
+ * Onboarding, and the only place the 90-day clock starts.
+ *
+ * Answered once, then the learner never sees it again — which is why it is a
+ * separate call from PATCH /me/profile rather than a flag on it. A half-filled
+ * onboarding leaves `onboardedAt` null, so the extension asks again rather than
+ * starting a plan from guesses.
+ */
+export async function completeOnboarding(
+  userId: string,
+  input: OnboardingRequest,
+): Promise<MeResponse> {
+  const user = await User.findById(userId);
+  if (!user) throw AppError.notFound('That account no longer exists.');
+  const profile = await ensureProfile(user._id);
+
+  user.timezone = input.timezone;
+  user.settings.notifications.reminderHour = input.reminderHour;
+
+  profile.level = input.level;
+  profile.targetLevel = input.targetLevel;
+  profile.targetExam = input.targetExam;
+  profile.dailyGoalMinutes = input.dailyGoalMinutes;
+  profile.planStartDate ??= localDate(user.timezone);
+  profile.onboardedAt ??= new Date();
+
+  await Promise.all([user.save(), profile.save()]);
+  return toMeResponse(user, profile);
+}
+
+/** Settings the learner owns: the pet, the notifications, the muted sites. */
+export async function updateSettings(
+  userId: string,
+  patch: UpdateSettingsRequest,
+): Promise<MeResponse> {
+  const user = await User.findById(userId);
+  if (!user) throw AppError.notFound('That account no longer exists.');
+  const profile = await ensureProfile(user._id);
+
+  if (patch.petEnabled !== undefined) user.settings.petEnabled = patch.petEnabled;
+  if (patch.petSkin !== undefined) user.settings.petSkin = patch.petSkin;
+  if (patch.blockedHosts !== undefined) {
+    // Normalised and de-duplicated here rather than trusted: this list is
+    // matched against a hostname on every page load.
+    user.settings.blockedHosts = [
+      ...new Set(patch.blockedHosts.map((h) => h.trim().toLowerCase()).filter(Boolean)),
+    ];
+  }
+  if (patch.notifications) {
+    Object.assign(user.settings.notifications, patch.notifications);
+  }
+
+  await user.save();
   return toMeResponse(user, profile);
 }
 

@@ -65,3 +65,9 @@ export const isTest = env.NODE_ENV === 'test';
 export const devAuthEnabled = env.DEV_AUTH_ENABLED && !isProd;
 
 export const googleConfigured = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+
+/** Notion is optional: with no credentials the extension shows it as unavailable
+ *  rather than offering a button that cannot work. */
+export const notionConfigured = Boolean(
+  env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET && env.NOTION_REDIRECT_URI,
+);

@@ -73,5 +73,11 @@ export type ChatStreamEvent =
   | { type: 'token'; text: string }
   | { type: 'corrections'; corrections: Correction[] }
   | { type: 'vocab'; items: VocabItem[] }
+  | {
+      type: 'mission';
+      completedTasks: { id: string; title: string; xp: number }[];
+      missionCompleted: boolean;
+      xpAwarded: number;
+    }
   | { type: 'done'; sessionId: string; xpAwarded: number; xpTotal: number; followUp: string | null }
   | { type: 'error'; code: string; message: string };
