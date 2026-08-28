@@ -45,7 +45,7 @@ const say = (t: string, text: string) =>
 const today = (t: string) =>
   request(app).get('/api/v1/missions/today').set('authorization', `Bearer ${t}`).expect(200);
 
-interface Task { id: string; kind: string; target: number; progress: number; done: boolean; xp: number }
+interface Task { id: string; kind: string; skill: string; target: number; progress: number; done: boolean; xp: number }
 
 describe('GET /missions/today', () => {
   it('needs a token', async () => {
@@ -137,6 +137,31 @@ describe('mission progress', () => {
       .set('authorization', `Bearer ${t}`)
       .expect(200);
     expect(second.body.xpAwarded).toBe(0);
+  });
+
+  it('credits the skill a finished task actually exercised', async () => {
+    const t = await token();
+    const { body } = await today(t);
+    const manual = (body.mission.tasks as Task[]).find(
+      (task) => !['chat', 'vocab', 'fix'].includes(task.kind),
+    )!;
+
+    const before = await request(app)
+      .get('/api/v1/progress/summary')
+      .set('authorization', `Bearer ${t}`)
+      .expect(200);
+    expect(before.body.skills[manual.skill]).toBe(0);
+
+    await request(app)
+      .post(`/api/v1/missions/today/tasks/${manual.id}/complete`)
+      .set('authorization', `Bearer ${t}`)
+      .expect(200);
+
+    const after = await request(app)
+      .get('/api/v1/progress/summary')
+      .set('authorization', `Bearer ${t}`)
+      .expect(200);
+    expect(after.body.skills[manual.skill]).toBeGreaterThan(0);
   });
 
   it('advances a read task from client-reported minutes', async () => {
