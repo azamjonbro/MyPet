@@ -1,6 +1,3 @@
-/** The pet's finite state machine. Lives in shared so the backend can reason
- *  about which reaction to push to an open pet (§H of the audit). */
-
 export const PET_STATES = [
   'idle',
   'walking',

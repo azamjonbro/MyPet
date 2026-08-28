@@ -2,9 +2,10 @@
 
 A Chrome extension with a small companion that helps you learn English while you browse.
 
-> **Status: Phases 1–4 are in** — foundation, the pet, the AI English tutor, and
-> progress analytics. Phases 5–8 (Notion, the mission engine, notifications,
-> polish) are not built yet.
+> **Status: all eight phases are in** — foundation, the pet, the AI tutor,
+> progress analytics, Notion export, the mission engine, reminders and the
+> onboarding/settings surfaces. It runs end to end on a fresh clone with no API
+> keys at all.
 
 ## Layout
 
@@ -60,7 +61,7 @@ switches on as soon as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
 | `pnpm dev` | Backend and extension together |
 | `pnpm dev:backend` | Backend only, watch mode |
 | `pnpm dev:extension` | Extension only, with content-script HMR |
-| `pnpm test` | All tests (90 today) |
+| `pnpm test` | All tests (126 today) |
 | `pnpm typecheck` | Strict TypeScript across all three packages |
 | `pnpm build` | Production build of everything |
 | `pnpm db:up` / `db:down` | Local MongoDB in Docker |
@@ -80,19 +81,47 @@ Memory is assembled fresh each turn under a 1800-token ceiling from four tiers:
 the learner profile, the last 8 turns, a rolling summary, and the ranked
 weakness ledger.
 
+**Missions** — one mission per learner per local day, generated the first time
+that day is opened rather than by a nightly job that would have to guess
+everybody's timezone. The planner — the model, or a deterministic template when
+there is no key — chooses only *what* to practise; ids, targets and XP are
+assigned by the server afterwards, so a bad generation can suggest a dull task
+but can never mint a reward. Tasks the server can see (chat with Mochi, collect
+words, stop making one specific mistake) advance from its own event stream and
+cannot be ticked off by asking; only the ones nobody else can witness — writing
+something, reading for ten minutes, saying a sentence out loud — have a Done
+button. Finishing all of them pays a completion bonus once.
+
+**Notion** — an optional export of the learner's vocabulary, their corrections
+and their finished days into their own workspace. The extension never sees a
+Notion token: the backend runs the whole OAuth exchange, seals the token with
+AES-256-GCM, and makes every write itself. Every exported row stores the id of
+the Notion page it became, so a sync that fails half way leaves the rest
+pending instead of duplicating what already landed.
+
+**Reminders** — at most two notifications a day, inside a three-hour window
+after the hour the learner picked, never after ten at night, never twice for
+the same local date, and none at all in quiet mode. A study app that pings
+whenever it has an excuse gets muted within a week and then cannot reach the
+learner at all, which is the failure this restraint is designed around.
+
 **Progress** — an append-only event log rolled up into daily stats, XP and
 levels, a streak with one silent grace day per week, six skill scores, and a
 ranked weakness ledger that returns the learner's own sentences as evidence.
 `GET /progress/summary`, `/weaknesses`, `/history`, and `POST /progress/events`
 for the few things the client is genuinely the authority on.
 
-**Extension** — a service worker that owns all tokens and all network calls; a
+**Extension** — onboarding that asks three questions and nothing else, because
+each answer changes what happens on the very next turn; a settings screen for
+reminders, the pet and muted sites; a service worker that owns all tokens and all network calls; a
 content script that mounts the pet into an open shadow root so neither side's CSS
 can reach the other; the pet with eight animated states driven by the shared
 state machine; a chat panel that streams Mochi's reply token by token over a
 long-lived port; synthesised sound (no audio files — it is all Web Audio);
 drag with per-site position memory; a popup and a side-panel dashboard, both
-with real loading, error, empty and signed-out states.
+with real loading, error, empty and signed-out states. Today's mission appears
+in all three places — popup, dashboard, and the conversation itself, where a
+finished task is a chip in the chat rather than a checklist somewhere else.
 
 ### Running without an OpenAI key
 
@@ -103,10 +132,28 @@ to end on a fresh clone, and why the test suite never makes a network call or
 costs anything. Set the key and `getProvider()` switches to OpenAI with
 structured outputs — nothing else changes.
 
+## Connecting Notion
+
+Optional, and off unless the server has credentials.
+
+1. Create an integration at <https://www.notion.so/my-integrations>, set it to
+   **Public**, and add `http://localhost:4100/api/v1/notion/callback` as a
+   redirect URI (or the deployed one — it must match exactly).
+2. Put `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` and `NOTION_REDIRECT_URI`
+   in `.env`. `ENCRYPTION_KEY` must also be set — without it the backend
+   refuses to store a third-party token at all.
+3. In the extension's dashboard, press **Connect Notion**, then share one page
+   with the integration from Notion's own share menu. That page is where the
+   three databases are created.
+
+With no credentials the dashboard says Notion is unavailable on this server
+rather than showing a button that cannot work.
+
 ## Permissions, and why they are so few
 
-Install-time: `storage`, `alarms`, `scripting`, plus one host permission for our
-own API. The content script is declared only on `google.com`.
+Install-time: `storage`, `alarms`, `scripting`, `sidePanel`, `notifications`,
+plus one host permission for our own API. The content script is declared only
+on `google.com`.
 
 "Let the pet follow me everywhere" is an **optional** host permission requested
 during onboarding and registered at runtime with
@@ -121,7 +168,8 @@ anything at all.
 - Access token: 15 minutes, `chrome.storage.session` — memory-backed, gone when the browser closes.
 - Refresh token: 30 days, rotating; only its SHA-256 hash is stored server-side.
   Replaying a rotated token revokes the entire token family.
-- Third-party tokens (Notion, from Phase 5) are sealed with AES-256-GCM at rest.
+- Third-party tokens (Notion) are sealed with AES-256-GCM at rest, and the
+  OAuth `state` is a ten-minute signed JWT rather than a table of pending flows.
 - `config/env.ts` validates the environment at boot, so a missing secret is a
   startup crash with a readable message rather than a 500 three weeks later.
 # MyPet

@@ -16,7 +16,7 @@ import { Mission, Profile, User, type MissionDoc } from '../models/index.js';
 import { getProvider } from '../ai/index.js';
 import { templatePlan } from '../ai/offline.js';
 import { buildMissionPrompt } from '../ai/prompts/mission.js';
-import { recordUsage } from '../ai/budget.js';
+import { assertWithinBudget, recordUsage } from '../ai/budget.js';
 import { topWeakTopics } from './memory.service.js';
 import { record } from './analytics.service.js';
 import { ensureProfile } from './profile.service.js';
@@ -148,6 +148,9 @@ export async function todayMission(userId: string): Promise<MissionDoc> {
   let source: 'ai' | 'template' = 'template';
 
   try {
+    // The same daily ceiling the tutor obeys. Over budget is not an error here:
+    // it is a reason to hand out the template day rather than nothing at all.
+    await assertWithinBudget(userId, today);
     const result = await provider.planMission(request);
     plan = result.plan;
     source = provider.name === 'offline' ? 'template' : 'ai';
