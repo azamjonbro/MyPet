@@ -140,6 +140,23 @@ client in Google Cloud Console and add `https://<extension-id>.chromiumapp.org/`
 as an authorised redirect URI. The extension ID is stable once the extension is
 published to the Web Store.
 
+## Notion in production
+
+Optional. Without `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` and
+`NOTION_REDIRECT_URI` the dashboard reports Notion as unavailable on this
+server, which is the right answer rather than a button that fails.
+
+The integration at <https://www.notion.so/my-integrations> must be **Public**,
+and its redirect URI must be exactly
+`https://algoritm.techinfo.uz/api/v1/notion/callback`. Notion sends the learner
+back to that URL in a normal browser tab, so it is the one route that is not
+behind a bearer token — a ten-minute signed `state` is what identifies the
+learner there instead. nginx already proxies everything under `/api/v1`, so no
+extra location block is needed.
+
+`ENCRYPTION_KEY` must be set before anyone connects: the backend refuses to
+store a third-party token it cannot seal.
+
 ## Backups
 
 ```bash
