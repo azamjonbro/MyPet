@@ -1,5 +1,6 @@
 import type {
   ChatStreamEvent,
+  CompleteTaskResponse,
   HistoryDay,
   MeResponse,
   MissionResponse,
@@ -58,6 +59,7 @@ export type Response =
   | { ok: true; progress: ProgressBundle }
   | { ok: true; position: { x: number; y: number } | null }
   | { ok: true; mission: MissionResponse }
+  | { ok: true; task: CompleteTaskResponse }
   | { ok: true; notion: NotionStatus }
   | { ok: true; sync: NotionSyncResult }
   | { ok: true; enabled: boolean }
@@ -68,8 +70,11 @@ export type Response =
 export type Push =
   | { type: 'PET_STATE'; state: PetState }
   | { type: 'SESSION_CHANGED'; session: SessionState }
-  /** Something changed today's mission — the pet and the panels re-read it. */
-  | { type: 'MISSION_CHANGED'; remaining: number };
+  /**
+   * Something changed today's mission. `remaining` is null when the sender
+   * does not know the new count — the panels re-read rather than guess.
+   */
+  | { type: 'MISSION_CHANGED'; remaining: number | null };
 
 /**
  * Chat runs over a long-lived port rather than one-shot messages, because a

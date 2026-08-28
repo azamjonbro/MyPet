@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SKILLS } from '@pet/shared';
-import { send, type ProgressBundle } from '../../src/types/messages.js';
+import { SKILLS, type MissionResponse, type NotionStatus } from '@pet/shared';
+import { MissionCard } from './MissionCard.js';
+import { NotionCard } from './NotionCard.js';
+import { send, type ProgressBundle, type Push } from '../../src/types/messages.js';
 
 type State =
   | { kind: 'loading' }
@@ -10,6 +12,22 @@ type State =
 
 export function Dashboard() {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [mission, setMission] = useState<MissionResponse | null>(null);
+  const [missionError, setMissionError] = useState<string | null>(null);
+  const [notion, setNotion] = useState<NotionStatus | null>(null);
+
+  const loadMission = useCallback(async () => {
+    setMissionError(null);
+    const res = await send({ type: 'MISSION_GET' }).catch(() => null);
+    if (res && 'mission' in res) setMission(res.mission);
+    else if (res && !res.ok) setMissionError(res.message);
+    else setMissionError('Could not load today.');
+  }, []);
+
+  const loadNotion = useCallback(async () => {
+    const res = await send({ type: 'NOTION_STATUS' }).catch(() => null);
+    if (res && 'notion' in res) setNotion(res.notion);
+  }, []);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -22,11 +40,25 @@ export function Dashboard() {
     if (res && 'progress' in res) setState({ kind: 'ready', data: res.progress });
     else if (res && !res.ok) setState({ kind: 'error', message: res.message });
     else setState({ kind: 'error', message: 'Could not load your progress.' });
-  }, []);
+
+    await Promise.all([loadMission(), loadNotion()]);
+  }, [loadMission, loadNotion]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // A task finished from the pet, the popup or a chat turn changes this page
+  // too — re-read rather than let two surfaces drift apart.
+  useEffect(() => {
+    const onPush = (message: unknown) => {
+      if ((message as Push)?.type !== 'MISSION_CHANGED') return;
+      void loadMission();
+      void load();
+    };
+    chrome.runtime.onMessage.addListener(onPush);
+    return () => chrome.runtime.onMessage.removeListener(onPush);
+  }, [loadMission, load]);
 
   if (state.kind === 'loading') {
     return (
@@ -96,6 +128,16 @@ export function Dashboard() {
         </div>
       </div>
 
+      <MissionCard
+        data={mission}
+        error={missionError}
+        onChanged={() => {
+          void loadMission();
+          void load();
+        }}
+        onError={setMissionError}
+      />
+
       <div className="tiles">
         <div className={`tile${summary.streak.atRisk ? ' risk' : ''}`}>
           <b>🔥 {summary.streak.current}</b>
@@ -160,6 +202,8 @@ export function Dashboard() {
           </div>
         ))}
       </div>
+
+      <NotionCard status={notion} onRefresh={() => void loadNotion()} />
 
       <div className="card">
         <h2>What to work on</h2>

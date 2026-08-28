@@ -64,7 +64,12 @@ export function ChatPanel({
           </div>
         ) : null}
 
-        {entries.map((entry) => (
+        {entries.map((entry) =>
+          entry.notice ? (
+            <div key={entry.id} className={`notice ${entry.notice}`} role="status">
+              {entry.text}
+            </div>
+          ) : (
           <div key={entry.id} className="chat-entry">
             <div className={`msg ${entry.role}`}>
               {entry.text || (status === 'sending' ? <Dots /> : null)}
@@ -88,7 +93,8 @@ export function ChatPanel({
             {entry.followUp ? <div className="followup">Now try: {entry.followUp}</div> : null}
             {entry.xp ? <div className="xp">+{entry.xp} XP</div> : null}
           </div>
-        ))}
+          ),
+        )}
 
         {error ? (
           <div className="chat-error" role="alert">

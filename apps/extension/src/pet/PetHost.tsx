@@ -7,7 +7,7 @@ import { useChat } from './useChat.js';
 import { pushToEvent } from './pushToEvent.js';
 import { sfx, soundForState } from './sfx.js';
 import { send } from '../types/messages.js';
-import type { Push } from '../types/messages.js';
+import type { Push, SessionState } from '../types/messages.js';
 
 const PET_W = 150;
 const PET_H = 150;
@@ -32,6 +32,7 @@ export function PetHost() {
   const [bubble, setBubble] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const drag = useRef<{ px: number; py: number; ox: number; oy: number; moved: boolean } | null>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +50,7 @@ export function PetHost() {
   const chat = useChat(
     useCallback(() => dispatch('CHAT_OPEN'), [dispatch]),
     useCallback(() => dispatch('XP_AWARDED'), [dispatch]),
+    useCallback(() => dispatch('MISSION_COMPLETE'), [dispatch]),
   );
 
   // Restore this site's last pet position, falling back to bottom-right.
@@ -56,15 +58,38 @@ export function PetHost() {
     let cancelled = false;
     void (async () => {
       await sfx.init();
+
+      // Settings decide whether the pet may be here at all. Checked in the
+      // content script rather than the worker because "muted on this site" is
+      // a fact about this page, and the worker does not know which page it is.
+      const session = await send({ type: 'SESSION_GET' }).catch(() => null);
+      const state = session && 'session' in session ? (session.session as SessionState) : null;
+      const settings = state?.status === 'signed-in' ? state.me.user.settings : null;
+      const welcome =
+        settings?.notifications.arrivalToast === true && state?.status === 'signed-in';
+      if (settings && (!settings.petEnabled || settings.blockedHosts.includes(host))) {
+        if (!cancelled) setAllowed(false);
+        return;
+      }
+
       const res = await send({ type: 'PET_POSITION_GET', host }).catch(() => null);
       const saved = res && 'position' in res ? res.position : null;
       if (cancelled) return;
+      setAllowed(true);
       setMuted(sfx.muted);
       setPos({
         x: clamp(saved?.x ?? innerWidth - PET_W - 30, MARGIN, maxX()),
         y: clamp(saved?.y ?? innerHeight - PET_H - 50, MARGIN, maxY()),
       });
       setReady(true);
+
+      // A hello on arrival, if the learner left that on. Late enough that it
+      // does not compete with the page still painting.
+      if (welcome) {
+        setTimeout(() => {
+          if (!cancelled) say(GREETINGS[Math.floor(Math.random() * GREETINGS.length)] ?? GREETINGS[0]!);
+        }, 2600);
+      }
     })();
     return () => {
       cancelled = true;
@@ -86,10 +111,18 @@ export function PetHost() {
     const onPush = (message: unknown) => {
       const push = message as Push;
       if (push?.type === 'PET_STATE') dispatch(pushToEvent(push.state));
+      if (push?.type === 'MISSION_CHANGED' && push.remaining !== null && push.remaining > 0) {
+        dispatch('MISSION_DUE');
+        say(
+          push.remaining === 1
+            ? 'One task left today.'
+            : `${push.remaining} tasks left today.`,
+        );
+      }
     };
     chrome.runtime.onMessage.addListener(onPush);
     return () => chrome.runtime.onMessage.removeListener(onPush);
-  }, [dispatch]);
+  }, [dispatch, say]);
 
   useEffect(() => {
     const onResize = () =>
@@ -141,6 +174,7 @@ export function PetHost() {
     }
   };
 
+  if (allowed === false) return null;
   if (!ready) return null;
 
   return (

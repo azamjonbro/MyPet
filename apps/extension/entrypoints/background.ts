@@ -1,6 +1,15 @@
-import type { MeResponse } from '@pet/shared';
+import type { MeResponse, PetState } from '@pet/shared';
 import { api, ApiError, signOut, streamChat } from '../src/services/api.js';
 import { localStore, sessionStore } from '../src/services/storage.js';
+import {
+  HOURLY_ALARM,
+  MISSION_NOTIFICATION,
+  STREAK_NOTIFICATION,
+  ensureAlarms,
+  openDashboard,
+  runChecks,
+} from '../src/services/notifications.js';
+import { hasFollowEverywhere, revokeFollowEverywhere, syncRegistration } from '../src/services/hostAccess.js';
 import { CHAT_PORT } from '../src/types/messages.js';
 import type {
   ChatPortEvent,
@@ -46,6 +55,27 @@ async function broadcast(push: Push): Promise<void> {
       tab.id ? chrome.tabs.sendMessage(tab.id, push).catch(() => {}) : Promise.resolve(),
     ),
   );
+}
+
+async function pushPetState(state: PetState): Promise<void> {
+  await broadcast({ type: 'PET_STATE', state });
+}
+
+/**
+ * The hourly beat: reminders, and a nudge to any pet currently on screen.
+ *
+ * Everything it needs is re-read from storage, because an MV3 worker that has
+ * been asleep since the last alarm has no module state left to trust.
+ */
+async function hourlyBeat(): Promise<void> {
+  const outcome = await runChecks();
+
+  if (outcome.missionRemaining !== null && outcome.missionRemaining > 0) {
+    await broadcast({ type: 'MISSION_CHANGED', remaining: outcome.missionRemaining });
+    await pushPetState('notifying');
+  } else if (outcome.streakAtRisk) {
+    await pushPetState('sad');
+  }
 }
 
 async function handle(req: Request): Promise<Response> {
@@ -97,9 +127,66 @@ async function handle(req: Request): Promise<Response> {
       return { ok: true, progress: { summary, weaknesses, history } };
     }
 
+    case 'ONBOARDING_SUBMIT': {
+      const me = await api.onboarding(req.input);
+      await localStore.setCachedMe(me);
+      const session: SessionState = { status: 'signed-in', me };
+      await broadcast({ type: 'SESSION_CHANGED', session });
+      return { ok: true, session };
+    }
+
+    case 'SETTINGS_UPDATE': {
+      const me = await api.updateSettings(req.patch);
+      await localStore.setCachedMe(me);
+      const session: SessionState = { status: 'signed-in', me };
+      await broadcast({ type: 'SESSION_CHANGED', session });
+      return { ok: true, session };
+    }
+
+    case 'MISSION_GET':
+      return { ok: true, mission: await api.missionToday() };
+
+    case 'MISSION_TASK_COMPLETE': {
+      const result = await api.completeTask(req.taskId);
+      const remaining = result.mission.tasks.filter((task) => !task.done).length;
+      await broadcast({ type: 'MISSION_CHANGED', remaining });
+      if (result.xpAwarded > 0) {
+        await pushPetState(result.missionCompleted ? 'celebrating' : 'happy');
+      }
+      return { ok: true, task: result };
+    }
+
+    case 'NOTION_STATUS':
+      return { ok: true, notion: await api.notionStatus() };
+
+    case 'NOTION_CONNECT': {
+      // Notion redirects a normal browser tab back to our backend, which then
+      // renders the "connected" page — so the flow has to leave the extension.
+      const url = await api.notionAuthorizeUrl();
+      await chrome.tabs.create({ url });
+      return { ok: true };
+    }
+
+    case 'NOTION_SYNC':
+      return { ok: true, sync: await api.notionSync(req.targets) };
+
+    case 'NOTION_DISCONNECT':
+      await api.notionDisconnect();
+      return { ok: true };
+
+    case 'FOLLOW_EVERYWHERE_GET':
+      return { ok: true, enabled: await hasFollowEverywhere() };
+
+    case 'FOLLOW_EVERYWHERE_SET': {
+      // Granting needs a user gesture, so the popup does that part itself and
+      // then tells us; here we only ever revoke, and keep registration in step.
+      if (!req.enabled) await revokeFollowEverywhere();
+      return { ok: true, enabled: await syncRegistration() };
+    }
+
     case 'PET_EVENT':
-      // Phase 3+ will turn learner-side events into tutor calls. For now the
-      // pet drives its own state machine locally.
+      // The pet drives its own state machine locally; the worker only pushes
+      // the reactions it alone knows about, like a mission falling due.
       return { ok: true };
 
     default:
@@ -122,9 +209,32 @@ export default defineBackground(() => {
     return true; // keep the message channel open for the async reply
   });
 
-  chrome.action.onClicked.addListener(() => {
-    chrome.runtime.openOptionsPage?.();
+  // --- reminders, and the optional "follow me everywhere" script ----------
+  chrome.runtime.onInstalled.addListener(() => {
+    ensureAlarms();
+    void syncRegistration();
   });
+  chrome.runtime.onStartup.addListener(() => {
+    ensureAlarms();
+    void syncRegistration();
+  });
+
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name !== HOURLY_ALARM) return;
+    void hourlyBeat().catch(() => {
+      /* the next hour will try again */
+    });
+  });
+
+  chrome.notifications.onClicked.addListener((id) => {
+    if (id !== MISSION_NOTIFICATION && id !== STREAK_NOTIFICATION) return;
+    chrome.notifications.clear(id);
+    void openDashboard();
+  });
+
+  // A permission granted from the popup has to become a registered script here.
+  chrome.permissions.onAdded.addListener(() => void syncRegistration());
+  chrome.permissions.onRemoved.addListener(() => void syncRegistration());
 
   // --- chat streaming -----------------------------------------------------
   chrome.runtime.onConnect.addListener((port) => {
@@ -134,6 +244,11 @@ export default defineBackground(() => {
     let closed = false;
 
     const post = (event: ChatPortEvent) => {
+      // A mission finished mid-conversation is news for the panels too, not
+      // just for the pet that happens to be streaming it.
+      if (event.type === 'mission') {
+        void broadcast({ type: 'MISSION_CHANGED', remaining: null }).catch(() => {});
+      }
       if (closed) return;
       try {
         port.postMessage(event);

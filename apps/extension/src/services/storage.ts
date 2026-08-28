@@ -8,6 +8,7 @@ const ACCESS_EXP = 'auth.accessExpiresAt';
 const REFRESH = 'auth.refreshToken';
 const ME = 'cache.me';
 const POSITIONS = 'pet.positions';
+const NOTIFY_LOG = 'notify.log';
 
 export const sessionStore = {
   async getAccessToken(): Promise<string | null> {
@@ -43,7 +44,22 @@ export const localStore = {
     await chrome.storage.local.set({ [ME]: me });
   },
   async clear(): Promise<void> {
-    await chrome.storage.local.remove([REFRESH, ME]);
+    await chrome.storage.local.remove([REFRESH, ME, NOTIFY_LOG]);
+  },
+
+  /**
+   * Which reminders have already been sent today. Kept as dates rather than
+   * flags plus a nightly reset, so a worker that never woke up cannot leave a
+   * flag stuck and silence the reminder forever.
+   */
+  async getNotifyLog(): Promise<{ missionDate: string | null; streakDate: string | null }> {
+    const stored = (await chrome.storage.local.get(NOTIFY_LOG))[NOTIFY_LOG] as
+      | { missionDate?: string; streakDate?: string }
+      | undefined;
+    return { missionDate: stored?.missionDate ?? null, streakDate: stored?.streakDate ?? null };
+  },
+  async setNotifyLog(log: { missionDate: string | null; streakDate: string | null }): Promise<void> {
+    await chrome.storage.local.set({ [NOTIFY_LOG]: log });
   },
 
   async getPosition(host: string): Promise<{ x: number; y: number } | null> {

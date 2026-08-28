@@ -10,6 +10,8 @@ export interface ChatEntry {
   corrections?: Correction[];
   xp?: number;
   followUp?: string | null;
+  /** A mission line, not something Mochi said — rendered as a chip. */
+  notice?: 'task' | 'mission';
 }
 
 export type ChatStatus = 'idle' | 'sending' | 'error';
@@ -19,7 +21,11 @@ export type ChatStatus = 'idle' | 'sending' | 'error';
  * worker. The port is opened lazily on first send and torn down on unmount,
  * so a pet that is never opened costs nothing.
  */
-export function useChat(onReplyStart: () => void, onXp: (amount: number) => void) {
+export function useChat(
+  onReplyStart: () => void,
+  onXp: (amount: number) => void,
+  onMissionComplete?: () => void,
+) {
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [status, setStatus] = useState<ChatStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +94,35 @@ export function useChat(onReplyStart: () => void, onXp: (amount: number) => void
           break;
         }
 
+        case 'mission': {
+          // The turn just finished part of today. Saying so here, in the same
+          // place the work happened, is what makes a mission feel like the
+          // conversation rather than a checklist somewhere else.
+          const lines: ChatEntry[] = event.completedTasks.map((task) => ({
+            id: crypto.randomUUID(),
+            role: 'pet' as const,
+            text: `✓ ${task.title} · +${task.xp} XP`,
+            notice: 'task' as const,
+          }));
+          if (event.missionCompleted) {
+            lines.push({
+              id: crypto.randomUUID(),
+              role: 'pet',
+              text: "🎉 Today's mission is done!",
+              notice: 'mission',
+            });
+            sfx.celebrate();
+            onMissionComplete?.();
+          }
+          setEntries((prev) => [...prev, ...lines]);
+          break;
+        }
+
         case 'vocab':
           break;
       }
     },
-    [onReplyStart, onXp],
+    [onReplyStart, onXp, onMissionComplete],
   );
 
   const ensurePort = useCallback((): chrome.runtime.Port => {
