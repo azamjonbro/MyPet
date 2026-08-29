@@ -161,7 +161,10 @@ With no `OPENAI_API_KEY` the backend uses a deterministic, rule-based tutor in
 its reply the same way the real one does. That is why the whole project runs end
 to end on a fresh clone, and why the test suite never makes a network call or
 costs anything. Set the key and `getProvider()` switches to OpenAI with
-structured outputs — nothing else changes.
+structured outputs — nothing else changes. The model is `OPENAI_MODEL_TUTOR`
+(`gpt-5.5` by default); newer models accept only the default sampling
+temperature, which the provider discovers on the first refusal and remembers,
+so switching models stays a one-line config change.
 
 ## Connecting Notion
 

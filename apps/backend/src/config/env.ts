@@ -42,8 +42,12 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL_TUTOR: z.string().default('gpt-4.1'),
-  OPENAI_MODEL_CHEAP: z.string().default('gpt-4.1-mini'),
+  // Both default to the same model: summarising and planning are cheap in
+  // tokens but not in consequence — a bad plan is the learner's whole day.
+  // Newer models reject a custom `temperature`; the provider notices and drops
+  // it, so pointing these at a different model is a one-line change.
+  OPENAI_MODEL_TUTOR: z.string().default('gpt-5.5'),
+  OPENAI_MODEL_CHEAP: z.string().default('gpt-5.5'),
   DAILY_TOKEN_BUDGET: z.coerce.number().int().positive().default(60_000),
 
   NOTION_CLIENT_ID: z.string().optional(),
